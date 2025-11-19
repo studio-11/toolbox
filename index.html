@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IFEN Toolbox - Vos outils Moodle</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/components.css">
+</head>
+<body>
+    <!-- Hero Section -->
+    <div class="hero">
+        <div class="hero-content">
+            <h1>🚀 IFEN Toolbox</h1>
+            <p class="hero-subtitle">Une boîte à outils pour rendre vos cours Moodle plus simples, plus beaux et plus efficaces</p>
+            
+            <div class="hero-tags">
+                <span class="tag-badge blue">🧩 Outils de cours</span>
+                <span class="tag-badge teal">⚙️ Fonctionnalités plateforme</span>
+                <span class="tag-badge purple">💡 Idées & votes</span>
+            </div>
+            
+            <div class="search-bar">
+                <input type="text" id="hero-search" placeholder="Rechercher un outil ou une fonctionnalité...">
+                <button id="hero-search-btn"><i class="fas fa-search"></i></button>
+            </div>
+
+            <div class="hero-actions">
+                <button class="btn btn-primary" onclick="scrollToSection('tools-section')">
+                    <i class="fas fa-toolbox"></i> Découvrir les outils
+                </button>
+                <button class="btn btn-ghost" onclick="scrollToSection('ideas-section')">
+                    <i class="fas fa-lightbulb"></i> Proposer une idée
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- Quick Stats -->
+        <div class="quick-stats">
+            <div class="stat-card">
+                <div class="stat-icon" style="background: var(--gradient-1);">
+                    <i class="fas fa-tools"></i>
+                </div>
+                <div class="stat-content">
+                    <div class="stat-number" id="stat-total-tools">7</div>
+                    <div class="stat-label">Outils disponibles</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon" style="background: var(--gradient-2);">
+                    <i class="fas fa-fire"></i>
+                </div>
+                <div class="stat-content">
+                    <div class="stat-number" id="stat-hot-tools">3</div>
+                    <div class="stat-label">Nouveautés ce mois</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon" style="background: var(--gradient-3);">
+                    <i class="fas fa-download"></i>
+                </div>
+                <div class="stat-content">
+                    <div class="stat-number">156</div>
+                    <div class="stat-label">Installations actives</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon" style="background: var(--accent-gradient);">
+                    <i class="fas fa-lightbulb"></i>
+                </div>
+                <div class="stat-content">
+                    <div class="stat-number" id="stat-ideas">3</div>
+                    <div class="stat-label">Suggestions en cours</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tools Section -->
+        <div class="section" id="tools-section">
+            <div class="section-header">
+                <div>
+                    <h2 class="section-title">
+                        <i class="fas fa-toolbox"></i>
+                        Outils disponibles
+                    </h2>
+                    <p class="section-subtitle">Modules et fonctionnalités que vous pouvez utiliser dès maintenant</p>
+                </div>
+            </div>
+
+            <!-- Filtres -->
+            <div class="filters-container">
+                <div class="filter-group">
+                    <label for="filter-type">Type</label>
+                    <select id="filter-type" class="filter-select">
+                        <option value="all">Tous les types</option>
+                        <option value="course">🧩 Outil de cours</option>
+                        <option value="platform">⚙️ Fonctionnalité plateforme</option>
+                    </select>
+                </div>
+
+                <div class="filter-group">
+                    <label for="filter-goal">Objectif</label>
+                    <select id="filter-goal" class="filter-select">
+                        <option value="all">Tous les objectifs</option>
+                        <option value="guidance">Guidage & navigation</option>
+                        <option value="virtual-class">Classes virtuelles</option>
+                        <option value="resources">Ressources & documents</option>
+                        <option value="quality">Qualité & suivi</option>
+                        <option value="interaction">Interaction & activités</option>
+                        <option value="support">Support & incidents</option>
+                    </select>
+                </div>
+
+                <div class="filter-group filter-search-group">
+                    <label for="filter-search">Recherche</label>
+                    <input type="text" id="filter-search" class="filter-input" placeholder="Rechercher un outil...">
+                </div>
+            </div>
+
+            <!-- Cards Grid -->
+            <div id="tools-list" class="cards-grid">
+                <!-- Généré par JavaScript -->
+            </div>
+        </div>
+
+        <!-- Ideas & Votes Section -->
+        <div class="section" id="ideas-section">
+            <div class="section-header">
+                <div>
+                    <h2 class="section-title">
+                        <i class="fas fa-lightbulb"></i>
+                        Idées & votes
+                    </h2>
+                    <p class="section-subtitle">Proposez de nouveaux modules ou améliorations, votez pour les idées des autres</p>
+                </div>
+            </div>
+
+            <div class="ideas-layout">
+                <!-- Liste des idées existantes -->
+                <div class="ideas-list-container">
+                    <h3 class="subsection-title">
+                        <i class="fas fa-star"></i> Idées existantes
+                    </h3>
+                    <p class="help-text">Cliquez sur 👍 pour soutenir une idée</p>
+                    
+                    <div id="ideas-list" class="ideas-list">
+                        <!-- Généré par JavaScript -->
+                    </div>
+                </div>
+
+                <!-- Formulaire nouvelle idée -->
+                <div class="ideas-form-container">
+                    <h3 class="subsection-title">
+                        <i class="fas fa-plus-circle"></i> Proposer une nouvelle idée
+                    </h3>
+                    
+                    <form id="idea-form" class="idea-form">
+                        <div class="form-group">
+                            <label for="idea-title">Titre de l'idée *</label>
+                            <input type="text" id="idea-title" required placeholder="Ex. Bloc de feedback rapide sur le cours">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="idea-type">Type *</label>
+                            <select id="idea-type" required>
+                                <option value="">— Sélectionnez —</option>
+                                <option value="course">Nouveau module de cours</option>
+                                <option value="platform">Nouvelle fonctionnalité plateforme</option>
+                                <option value="improvement">Amélioration d'un outil existant</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="idea-problem">Problème à résoudre *</label>
+                            <textarea id="idea-problem" rows="3" required 
+                                placeholder="Décrivez en une ou deux phrases la situation actuelle"></textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="idea-details">Détails / inspiration (optionnel)</label>
+                            <textarea id="idea-details" rows="4" 
+                                placeholder="Fonctionnement souhaité, exemples, outils similaires..."></textarea>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary btn-full">
+                            <i class="fas fa-paper-plane"></i> Envoyer l'idée
+                        </button>
+                        <p id="idea-message" class="form-message"></p>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- CTA Section -->
+        <div class="cta-section">
+            <div class="cta-content">
+                <h2>🎯 Envie d'en savoir plus ?</h2>
+                <p>Contactez l'équipe LearningSphere pour une démo personnalisée ou pour discuter de vos besoins spécifiques</p>
+                <button class="btn btn-cta">
+                    <i class="fas fa-envelope"></i> Nous contacter
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="footer-content">
+            <p>LearningSphere Toolbox — IFEN · Version prototype</p>
+            <p>Pour toute question, contactez l'équipe LearningSphere</p>
+        </div>
+    </footer>
+
+    <script src="js/app.js"></script>
+</body>
+</html>

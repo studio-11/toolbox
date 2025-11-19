@@ -1,0 +1,422 @@
+/* =============== RESET léger =============== */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: #f4f6fb;
+    color: #1f2430;
+    line-height: 1.4;
+}
+
+.ls-page {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+/* =============== HERO =============== */
+
+.ls-hero {
+    background: radial-gradient(circle at top left, #38d9a9 0, #364fc7 40%, #21295c 85%);
+    color: #fff;
+    padding: 3.5rem 1.5rem 2.5rem;
+}
+
+.ls-hero-content {
+    max-width: 1000px;
+    margin: 0 auto;
+}
+
+.ls-hero h1 {
+    font-size: 2.4rem;
+    margin-bottom: 0.5rem;
+}
+
+.ls-hero-subtitle {
+    font-size: 1.2rem;
+    opacity: 0.9;
+    margin-bottom: 1rem;
+}
+
+.ls-hero-text {
+    max-width: 700px;
+    font-size: 0.98rem;
+    opacity: 0.95;
+}
+
+.ls-hero-tags {
+    margin-top: 1.5rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.ls-tag {
+    font-size: 0.8rem;
+    padding: 0.35rem 0.75rem;
+    border-radius: 999px;
+    border: 1px solid rgba(255,255,255,0.5);
+    backdrop-filter: blur(6px);
+}
+
+.ls-tag-blue { background: rgba(116, 185, 255, 0.18); }
+.ls-tag-teal { background: rgba(99, 230, 190, 0.18); }
+.ls-tag-purple { background: rgba(186, 104, 255, 0.18); }
+
+.ls-hero-actions {
+    margin-top: 1.8rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+}
+
+/* =============== BOUTONS =============== */
+
+.btn {
+    border-radius: 999px;
+    padding: 0.65rem 1.4rem;
+    font-size: 0.95rem;
+    border: none;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.08s ease, box-shadow 0.08s ease, background 0.15s ease;
+    white-space: nowrap;
+}
+
+.btn.primary {
+    background: #ffcb3c;
+    color: #1f2430;
+    box-shadow: 0 7px 18px rgba(0,0,0,0.25);
+}
+
+.btn.primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 10px 26px rgba(0,0,0,0.3);
+}
+
+.btn.ghost {
+    background: transparent;
+    color: #fff;
+    border: 1px solid rgba(255,255,255,0.7);
+}
+
+.btn.ghost:hover {
+    background: rgba(255,255,255,0.08);
+}
+
+.btn.full {
+    width: 100%;
+}
+
+/* =============== SECTIONS =============== */
+
+.ls-main {
+    flex: 1;
+    padding: 2.5rem 1.5rem 3.5rem;
+}
+
+.ls-section {
+    max-width: 1100px;
+    margin: 0 auto 3rem;
+    background: #ffffff;
+    border-radius: 18px;
+    padding: 1.9rem 1.9rem 2.2rem;
+    box-shadow: 0 12px 30px rgba(15, 23, 42, 0.09);
+}
+
+.ls-section-header h2 {
+    font-size: 1.4rem;
+    margin-bottom: 0.25rem;
+}
+
+.ls-section-header p {
+    font-size: 0.95rem;
+    color: #4b5563;
+}
+
+/* =============== FILTRES =============== */
+
+.ls-filters {
+    margin-top: 1.6rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    align-items: flex-end;
+}
+
+.ls-filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    min-width: 180px;
+}
+
+.ls-filter-group label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: #6b7280;
+}
+
+.ls-filter-group select,
+.ls-filter-group input {
+    border-radius: 999px;
+    border: 1px solid #d1d5db;
+    padding: 0.45rem 0.9rem;
+    font-size: 0.9rem;
+    outline: none;
+}
+
+.ls-filter-group input:focus,
+.ls-filter-group select:focus {
+    border-color: #2563eb;
+}
+
+/* =============== CARDS OUTILS =============== */
+
+.ls-cards-grid {
+    margin-top: 1.7rem;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 1.3rem;
+}
+
+.ls-card {
+    border-radius: 16px;
+    border: 1px solid #e5e7eb;
+    padding: 1.2rem 1.2rem 1.15rem;
+    background: linear-gradient(135deg, #ffffff 0, #f9fafb 50%, #f3f4ff 100%);
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    position: relative;
+    overflow: hidden;
+}
+
+.ls-card-badge {
+    position: absolute;
+    top: 0.75rem;
+    right: 0.75rem;
+    font-size: 0.7rem;
+    padding: 0.2rem 0.5rem;
+    border-radius: 999px;
+    background: #fee2e2;
+    color: #b91c1c;
+    font-weight: 600;
+}
+
+.ls-card-title {
+    font-size: 1rem;
+    font-weight: 700;
+    margin-right: 2.5rem;
+}
+
+.ls-card-meta {
+    font-size: 0.8rem;
+    color: #6b7280;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.ls-card-meta span {
+    background: rgba(15, 23, 42, 0.03);
+    padding: 0.15rem 0.55rem;
+    border-radius: 999px;
+}
+
+.ls-card-desc {
+    font-size: 0.9rem;
+    color: #374151;
+}
+
+.ls-card-bullets {
+    margin-top: 0.25rem;
+    font-size: 0.85rem;
+    color: #4b5563;
+}
+
+.ls-card-bullets li {
+    margin-left: 1.1rem;
+    list-style: disc;
+}
+
+.ls-card-actions {
+    margin-top: 0.85rem;
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+/* =============== IDEES & VOTES =============== */
+
+.ls-ideas-layout {
+    margin-top: 1.5rem;
+    display: grid;
+    grid-template-columns: minmax(0, 1.6fr) minmax(0, 1.2fr);
+    gap: 1.5rem;
+}
+
+.ls-ideas-list-wrapper,
+.ls-ideas-form-wrapper {
+    background: #f9fafb;
+    border-radius: 15px;
+    padding: 1rem 1.1rem 1.3rem;
+    border: 1px solid #e5e7eb;
+}
+
+.ls-small {
+    font-size: 0.8rem;
+    color: #6b7280;
+    margin-top: 0.25rem;
+}
+
+.ls-ideas-list {
+    margin-top: 0.9rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.ls-idea-item {
+    background: #ffffff;
+    border-radius: 12px;
+    padding: 0.8rem 0.85rem;
+    border: 1px solid #e5e7eb;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0.7rem;
+}
+
+.ls-idea-votes {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-width: 50px;
+}
+
+.ls-idea-votes button {
+    border-radius: 999px;
+    border: 1px solid #e5e7eb;
+    padding: 0.15rem 0.6rem;
+    background: #f9fafb;
+    cursor: pointer;
+    font-size: 0.85rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2rem;
+}
+
+.ls-idea-votes button:hover {
+    background: #e5f0ff;
+    border-color: #2563eb;
+}
+
+.ls-idea-count {
+    font-size: 0.9rem;
+    font-weight: 600;
+    margin-top: 0.2rem;
+}
+
+.ls-idea-content h4 {
+    font-size: 0.95rem;
+    margin-bottom: 0.15rem;
+}
+
+.ls-idea-tags {
+    font-size: 0.75rem;
+    color: #6b7280;
+    margin-bottom: 0.25rem;
+}
+
+.ls-idea-description {
+    font-size: 0.85rem;
+    color: #374151;
+}
+
+/* Formulaire idées */
+
+.ls-idea-form {
+    margin-top: 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.7rem;
+}
+
+.form-group label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #4b5563;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+    width: 100%;
+    margin-top: 0.25rem;
+    border-radius: 10px;
+    border: 1px solid #d1d5db;
+    padding: 0.45rem 0.7rem;
+    font-size: 0.9rem;
+    resize: vertical;
+    outline: none;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+    border-color: #2563eb;
+}
+
+.ls-form-message {
+    margin-top: 0.45rem;
+    font-size: 0.85rem;
+    color: #059669;
+}
+
+/* =============== FOOTER =============== */
+
+.ls-footer {
+    text-align: center;
+    font-size: 0.8rem;
+    color: #6b7280;
+    padding: 0.8rem 1rem 1.3rem;
+}
+
+/* =============== RESPONSIVE =============== */
+
+@media (max-width: 900px) {
+    .ls-hero {
+        padding-top: 2.7rem;
+    }
+
+    .ls-hero h1 {
+        font-size: 2rem;
+    }
+
+    .ls-ideas-layout {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 640px) {
+    .ls-section {
+        padding: 1.4rem 1.2rem 1.7rem;
+    }
+
+    .ls-filters {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .ls-filter-group {
+        width: 100%;
+    }
+}

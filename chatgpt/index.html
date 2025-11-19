@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>LearningSphere Toolbox</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="ls-page">
+
+    <!-- 1) CONCEPT / HEADER -->
+    <header class="ls-hero">
+        <div class="ls-hero-content">
+            <h1>LearningSphere Toolbox</h1>
+            <p class="ls-hero-subtitle">
+                Une boîte à outils pour rendre vos cours Moodle plus simples, plus beaux et plus efficaces.
+            </p>
+            <p class="ls-hero-text">
+                Retrouvez ici les modules prêts à l’emploi (Auto Link Activity, MS Teams Webinar, InfoFormation Manager, etc.)
+                ainsi que les nouvelles fonctionnalités de la plateforme IFEN. Testez-les, adoptez-les, proposez vos idées.
+            </p>
+
+            <div class="ls-hero-tags">
+                <span class="ls-tag ls-tag-blue">🧩 Outils de cours</span>
+                <span class="ls-tag ls-tag-teal">⚙️ Fonctionnalités plateforme</span>
+                <span class="ls-tag ls-tag-purple">💡 Idées & votes</span>
+            </div>
+
+            <div class="ls-hero-actions">
+                <button class="btn primary" data-target="tools-section">Découvrir les outils</button>
+                <button class="btn ghost" data-target="ideas-section">Proposer une idée</button>
+            </div>
+        </div>
+    </header>
+
+    <!-- 2) MARKETPLACE / OUTILS -->
+    <main class="ls-main">
+
+        <section id="tools-section" class="ls-section">
+            <div class="ls-section-header">
+                <h2>Outils disponibles</h2>
+                <p>Modules et fonctionnalités que vous pouvez utiliser dès maintenant dans vos cours Moodle.</p>
+            </div>
+
+            <!-- Filtres -->
+            <div class="ls-filters">
+                <div class="ls-filter-group">
+                    <label for="filter-type">Type</label>
+                    <select id="filter-type">
+                        <option value="all">Tous les types</option>
+                        <option value="course">🧩 Outil de cours</option>
+                        <option value="platform">⚙️ Fonctionnalité plateforme</option>
+                    </select>
+                </div>
+
+                <div class="ls-filter-group">
+                    <label for="filter-goal">Objectif</label>
+                    <select id="filter-goal">
+                        <option value="all">Tous les objectifs</option>
+                        <option value="guidance">Guidage & navigation</option>
+                        <option value="virtual-class">Classes virtuelles</option>
+                        <option value="resources">Ressources & documents</option>
+                        <option value="quality">Qualité & suivi</option>
+                        <option value="interaction">Interaction & activités</option>
+                        <option value="support">Support & incidents</option>
+                    </select>
+                </div>
+
+                <div class="ls-filter-group ls-filter-search">
+                    <label for="filter-search">Recherche</label>
+                    <input type="text" id="filter-search" placeholder="Rechercher un outil...">
+                </div>
+            </div>
+
+            <!-- Liste des cartes outils -->
+            <div id="tools-list" class="ls-cards-grid">
+                <!-- Les cartes seront générées par app.js -->
+            </div>
+        </section>
+
+        <!-- 3) IDEES & VOTES -->
+        <section id="ideas-section" class="ls-section">
+            <div class="ls-section-header">
+                <h2>Idées & votes</h2>
+                <p>
+                    Proposez de nouveaux modules ou améliorations, votez pour les idées des autres
+                    et contribuez à la roadmap de LearningSphere.
+                </p>
+            </div>
+
+            <div class="ls-ideas-layout">
+
+                <!-- Liste des idées -->
+                <div class="ls-ideas-list-wrapper">
+                    <h3>Idées existantes</h3>
+                    <p class="ls-small">
+                        Cliquez sur 👍 pour soutenir une idée. (Prototype : les votes sont enregistrés dans votre navigateur.)
+                    </p>
+                    <div id="ideas-list" class="ls-ideas-list">
+                        <!-- Généré en JS -->
+                    </div>
+                </div>
+
+                <!-- Formulaire nouvelle idée -->
+                <div class="ls-ideas-form-wrapper">
+                    <h3>Proposer une nouvelle idée</h3>
+                    <form id="idea-form" class="ls-idea-form">
+                        <div class="form-group">
+                            <label for="idea-title">Titre de l'idée *</label>
+                            <input type="text" id="idea-title" required placeholder="Ex. Bloc de feedback rapide sur le cours">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="idea-type">Type *</label>
+                            <select id="idea-type" required>
+                                <option value="">– Sélectionnez –</option>
+                                <option value="course">Nouveau module de cours</option>
+                                <option value="platform">Nouvelle fonctionnalité plateforme</option>
+                                <option value="improvement">Amélioration d'un outil existant</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="idea-problem">Problème à résoudre *</label>
+                            <textarea id="idea-problem" rows="3" required
+                                placeholder="Décrivez en une ou deux phrases la situation actuelle."></textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="idea-details">Détails / inspiration (optionnel)</label>
+                            <textarea id="idea-details" rows="4"
+                                placeholder="Fonctionnement souhaité, exemples, outils similaires..."></textarea>
+                        </div>
+
+                        <button type="submit" class="btn primary full">Envoyer l'idée</button>
+                        <p id="idea-message" class="ls-form-message"></p>
+                    </form>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <footer class="ls-footer">
+        <p>
+            LearningSphere Toolbox – IFEN · Version prototype.<br>
+            Pour toute question, contactez l'équipe LearningSphere.
+        </p>
+    </footer>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
