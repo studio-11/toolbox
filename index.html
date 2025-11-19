@@ -4,9 +4,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>IFEN Toolbox - Vos outils Moodle</title>
+    
+    <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="css/style.css">
-    <link rel="stylesheet" href="css/components.css">
+    
+    <!-- Styles IFEN -->
+    <link rel="stylesheet" href="css/style-ifen.css">
+    <link rel="stylesheet" href="css/components-ifen.css">
+    
+    <!-- Favicon (optionnel) -->
+    <link rel="icon" type="image/x-icon" href="https://lms.ifen.lu/theme/image.php/boost_union/theme/1731923824/favicon">
 </head>
 <body>
     <!-- Hero Section -->
@@ -68,7 +75,7 @@
                 </div>
             </div>
             <div class="stat-card">
-                <div class="stat-icon" style="background: var(--accent-gradient);">
+                <div class="stat-icon" style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);">
                     <i class="fas fa-lightbulb"></i>
                 </div>
                 <div class="stat-content">
@@ -199,7 +206,7 @@
             <div class="cta-content">
                 <h2>🎯 Envie d'en savoir plus ?</h2>
                 <p>Contactez l'équipe LearningSphere pour une démo personnalisée ou pour discuter de vos besoins spécifiques</p>
-                <button class="btn btn-cta">
+                <button class="btn btn-cta" onclick="window.location.href='mailto:learningsphere@ifen.lu'">
                     <i class="fas fa-envelope"></i> Nous contacter
                 </button>
             </div>
@@ -209,11 +216,12 @@
     <!-- Footer -->
     <footer class="footer">
         <div class="footer-content">
-            <p>LearningSphere Toolbox — IFEN · Version prototype</p>
-            <p>Pour toute question, contactez l'équipe LearningSphere</p>
+            <p><strong>LearningSphere Toolbox</strong> — IFEN · Institut de formation de l'Éducation nationale</p>
+            <p>Pour toute question, contactez l'équipe LearningSphere : <a href="mailto:learningsphere@ifen.lu" style="color: var(--secondary);">learningsphere@ifen.lu</a></p>
         </div>
     </footer>
 
+    <!-- JavaScript -->
     <script src="js/app.js"></script>
 </body>
 </html>
