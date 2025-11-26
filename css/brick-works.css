@@ -1,0 +1,730 @@
+/**
+ * ============================================
+ * BRICK WORKS - Styles CSS (Version Light)
+ * ============================================
+ */
+
+/* ============================================
+   MODAL AUTONOME
+   ============================================ */
+
+.works-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+    padding: 20px;
+}
+
+.works-modal-overlay.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+.works-modal {
+    background: var(--bg-primary, #fff);
+    border-radius: 12px;
+    width: 100%;
+    max-width: 600px;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    transform: scale(0.9) translateY(20px);
+    transition: transform 0.3s ease;
+}
+
+.works-modal-overlay.active .works-modal {
+    transform: scale(1) translateY(0);
+}
+
+.works-modal-large {
+    max-width: 900px;
+}
+
+.works-modal-header-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid var(--border-color, #e0e0e0);
+    background: var(--bg-secondary, #f5f5f5);
+    border-radius: 12px 12px 0 0;
+}
+
+.works-modal-title {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--text-primary, #333);
+}
+
+.works-modal-close {
+    background: none;
+    border: none;
+    font-size: 1.75rem;
+    cursor: pointer;
+    color: var(--text-muted, #666);
+    padding: 0;
+    line-height: 1;
+    transition: color 0.2s;
+}
+
+.works-modal-close:hover {
+    color: var(--text-primary, #333);
+}
+
+.works-modal-body {
+    padding: 1.5rem;
+    overflow-y: auto;
+    flex: 1;
+}
+
+/* ============================================
+   HERO STAT CLIQUABLE
+   ============================================ */
+
+.hero-stat-clickable {
+    cursor: pointer;
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.hero-stat-clickable:hover {
+    transform: translateY(-3px);
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+}
+
+/* Style spécifique pour la stat Travaux */
+.hero-stat-works .hero-stat-value {
+    font-size: 1.5rem;
+    margin-bottom: 0.25rem;
+}
+
+.hero-stat-works .hero-stat-label {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.platform-version-inline {
+    opacity: 0.8;
+    font-size: 0.85em;
+}
+
+.platform-version-inline::before {
+    content: "•";
+    margin-right: 6px;
+}
+
+/* Indicateur de statut plateforme */
+.platform-status-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+    background: #6c757d;
+    flex-shrink: 0;
+    animation: pulse-dot 2s ease-in-out infinite;
+}
+
+.platform-status-dot.operational {
+    background: #28a745;
+    box-shadow: 0 0 8px rgba(40, 167, 69, 0.6);
+}
+
+.platform-status-dot.maintenance {
+    background: #fd7e14;
+    box-shadow: 0 0 8px rgba(253, 126, 20, 0.6);
+}
+
+.platform-status-dot.upgrading {
+    background: #007bff;
+    box-shadow: 0 0 8px rgba(0, 123, 255, 0.6);
+}
+
+.platform-status-dot.partial_outage {
+    background: #dc3545;
+    box-shadow: 0 0 8px rgba(220, 53, 69, 0.6);
+}
+
+.platform-status-dot.major_outage {
+    background: #dc3545;
+    box-shadow: 0 0 12px rgba(220, 53, 69, 0.8);
+    animation: pulse-urgent 1s ease-in-out infinite;
+}
+
+@keyframes pulse-dot {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+}
+
+@keyframes pulse-urgent {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.2); }
+}
+
+/* ============================================
+   MODAL TRAVAUX
+   ============================================ */
+
+.works-modal-content {
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+/* En-tête avec statut plateforme */
+.works-modal-header {
+    margin-bottom: 1.5rem;
+}
+
+.platform-status-card {
+    background: linear-gradient(135deg, #502b85 0%, #4a2d7f 100%);
+    border-radius: 12px;
+    padding: 1.25rem 1.5rem;
+    color: white;
+}
+
+.platform-status-main {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.75rem;
+}
+
+.platform-status-indicator {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.platform-status-indicator .status-dot {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #6c757d;
+    flex-shrink: 0;
+}
+
+.platform-status-indicator .status-dot.operational { background: #28a745; box-shadow: 0 0 8px rgba(40, 167, 69, 0.6); }
+.platform-status-indicator .status-dot.maintenance { background: #fd7e14; box-shadow: 0 0 8px rgba(253, 126, 20, 0.6); }
+.platform-status-indicator .status-dot.upgrading { background: #007bff; box-shadow: 0 0 8px rgba(0, 123, 255, 0.6); }
+.platform-status-indicator .status-dot.partial_outage { background: #dc3545; box-shadow: 0 0 8px rgba(220, 53, 69, 0.6); }
+.platform-status-indicator .status-dot.major_outage { background: #dc3545; box-shadow: 0 0 12px rgba(220, 53, 69, 0.8); }
+
+.platform-status-indicator .status-text {
+    font-weight: 600;
+    font-size: 1.1rem;
+    color: white;
+}
+
+.platform-version {
+    text-align: right;
+}
+
+.platform-version .version-label {
+    display: block;
+    font-size: 0.75rem;
+    opacity: 0.8;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.platform-version .version-value {
+    font-weight: 700;
+    font-size: 1.1rem;
+}
+
+.platform-status-details {
+    display: flex;
+    gap: 1.5rem;
+    font-size: 0.85rem;
+    opacity: 0.9;
+    flex-wrap: wrap;
+}
+
+.platform-status-details i {
+    margin-right: 6px;
+    opacity: 0.8;
+}
+
+.platform-message {
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.2);
+    font-size: 0.9rem;
+    font-style: italic;
+}
+
+/* Stats rapides */
+.works-quick-stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.75rem;
+    margin-bottom: 1.25rem;
+}
+
+.quick-stat {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 0.75rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: 2px solid transparent;
+}
+
+.quick-stat:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.quick-stat.active {
+    border-color: #502b85;
+    background: rgba(80, 43, 133, 0.1);
+}
+
+/* Couleurs par type de stat */
+.quick-stat[data-filter="in_progress"] .quick-stat-value { color: #17a2b8; }
+.quick-stat[data-filter="planned"] .quick-stat-value { color: #502b85; }
+.quick-stat[data-filter="unplanned"] .quick-stat-value { color: #fd7e14; }
+.quick-stat[data-filter="completed"] .quick-stat-value { color: #28a745; }
+
+.quick-stat[data-filter="in_progress"]:hover { border-color: #17a2b8; background: rgba(23, 162, 184, 0.1); }
+.quick-stat[data-filter="planned"]:hover { border-color: #502b85; background: rgba(80, 43, 133, 0.1); }
+.quick-stat[data-filter="unplanned"]:hover { border-color: #fd7e14; background: rgba(253, 126, 20, 0.1); }
+.quick-stat[data-filter="completed"]:hover { border-color: #28a745; background: rgba(40, 167, 69, 0.1); }
+
+.quick-stat-value {
+    display: block;
+    font-size: 1.5rem;
+    font-weight: 700;
+}
+
+.quick-stat-label {
+    font-size: 0.75rem;
+    color: #6c757d;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Filtres */
+.works-filters {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1.25rem;
+}
+
+.filter-row {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.filter-group {
+    flex: 1;
+    min-width: 150px;
+}
+
+.filter-search {
+    flex: 2;
+    position: relative;
+}
+
+.filter-search input {
+    padding-left: 2.5rem;
+    width: 100%;
+    height: 38px;
+    border: 1px solid #ced4da;
+    border-radius: 6px;
+    font-size: 0.9rem;
+}
+
+.filter-search i {
+    position: absolute;
+    left: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #6c757d;
+}
+
+.filter-group select {
+    width: 100%;
+    height: 38px;
+    border: 1px solid #ced4da;
+    border-radius: 6px;
+    padding: 0 0.75rem;
+    font-size: 0.9rem;
+    background: white;
+}
+
+.checkbox-filter {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    padding: 0.5rem 0.75rem;
+    background: white;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    white-space: nowrap;
+    border: 1px solid #ced4da;
+}
+
+.checkbox-filter input {
+    margin: 0;
+}
+
+.checkbox-filter i {
+    color: #dc3545;
+}
+
+/* Liste des travaux */
+.works-list {
+    max-height: 400px;
+    overflow-y: auto;
+    padding-right: 0.5rem;
+}
+
+.works-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+.works-list::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+}
+
+.works-list::-webkit-scrollbar-thumb {
+    background: #502b85;
+    border-radius: 3px;
+}
+
+.loading-placeholder,
+.empty-placeholder {
+    text-align: center;
+    padding: 3rem;
+    color: #6c757d;
+}
+
+.loading-placeholder i,
+.empty-placeholder i {
+    font-size: 2rem;
+    margin-bottom: 0.75rem;
+    display: block;
+}
+
+/* ============================================
+   CARTE TRAVAIL
+   ============================================ */
+
+.work-card {
+    display: flex;
+    background: white;
+    border-radius: 8px;
+    margin-bottom: 0.75rem;
+    overflow: hidden;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: 1px solid #e0e0e0;
+}
+
+.work-card:hover {
+    transform: translateX(4px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    border-color: #502b85;
+}
+
+.work-card-status-bar {
+    width: 4px;
+    flex-shrink: 0;
+}
+
+.work-card-status-bar.in_progress { background: #17a2b8; }
+.work-card-status-bar.planned { background: #502b85; }
+.work-card-status-bar.unplanned { background: #fd7e14; }
+.work-card-status-bar.completed { background: #28a745; }
+.work-card-status-bar.cancelled { background: #6c757d; }
+
+.work-card-content {
+    flex: 1;
+    padding: 1rem;
+}
+
+.work-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 0.5rem;
+}
+
+.work-card-badges {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.work-downtime-indicator {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    color: #dc3545;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.work-card-title {
+    margin: 0 0 0.5rem 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: #333;
+}
+
+.work-card-description {
+    margin: 0 0 0.75rem 0;
+    font-size: 0.85rem;
+    color: #6c757d;
+    line-height: 1.4;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.work-card-meta {
+    display: flex;
+    gap: 1rem;
+    font-size: 0.8rem;
+    color: #6c757d;
+}
+
+.work-card-meta i {
+    margin-right: 4px;
+    opacity: 0.7;
+}
+
+/* ============================================
+   BADGES
+   ============================================ */
+
+.badge {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.7rem;
+    font-weight: 600;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.badge-lg {
+    padding: 0.35rem 0.75rem;
+    font-size: 0.8rem;
+}
+
+/* Types */
+.badge-type.maintenance { background: #e3f2fd; color: #1565c0; }
+.badge-type.upgrade { background: #f3e5f5; color: #7b1fa2; }
+.badge-type.feature { background: #e8f5e9; color: #2e7d32; }
+.badge-type.bugfix { background: #fff3e0; color: #e65100; }
+.badge-type.security { background: #ffebee; color: #c62828; }
+.badge-type.performance { background: #e0f7fa; color: #00838f; }
+.badge-type.other { background: #eceff1; color: #546e7a; }
+
+/* Statuts */
+.badge-status.in_progress { background: #17a2b8; color: white; }
+.badge-status.planned { background: #502b85; color: white; }
+.badge-status.unplanned { background: #fd7e14; color: white; }
+.badge-status.completed { background: #28a745; color: white; }
+.badge-status.cancelled { background: #6c757d; color: white; }
+
+/* Priorités */
+.badge-priority.low { background: #e8f5e9; color: #2e7d32; }
+.badge-priority.medium { background: #fff8e1; color: #f57f17; }
+.badge-priority.high { background: #fff3e0; color: #e65100; }
+.badge-priority.critical { background: #ffebee; color: #c62828; }
+
+/* ============================================
+   MODAL DÉTAILS TRAVAIL
+   ============================================ */
+
+.work-details-content {
+    max-width: 700px;
+    margin: 0 auto;
+}
+
+.work-details-header {
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid #e0e0e0;
+}
+
+.work-details-badges {
+    display: flex;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+}
+
+.work-details-title {
+    margin: 0;
+    font-size: 1.5rem;
+    color: #333;
+}
+
+.work-details-section {
+    margin-bottom: 1.5rem;
+}
+
+.work-details-section h4 {
+    margin: 0 0 0.75rem 0;
+    font-size: 0.9rem;
+    color: #502b85;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.work-details-section h4 i {
+    margin-right: 8px;
+}
+
+.work-description-text {
+    margin: 0;
+    color: #333;
+    line-height: 1.6;
+}
+
+.work-details-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.work-detail-item {
+    background: #f8f9fa;
+    padding: 1rem;
+    border-radius: 8px;
+}
+
+.detail-label {
+    display: block;
+    font-size: 0.75rem;
+    color: #6c757d;
+    text-transform: uppercase;
+    margin-bottom: 0.25rem;
+}
+
+.detail-label i {
+    margin-right: 6px;
+}
+
+.detail-value {
+    font-weight: 600;
+    color: #333;
+}
+
+.work-notes-text,
+.work-completion-text {
+    background: #f8f9fa;
+    padding: 1rem;
+    border-radius: 8px;
+    white-space: pre-wrap;
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+.work-completion-text {
+    border-left: 4px solid #28a745;
+}
+
+.work-details-footer {
+    display: flex;
+    justify-content: flex-start;
+    padding-top: 1rem;
+    border-top: 1px solid #e0e0e0;
+}
+
+.work-details-footer .btn {
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    border: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.work-details-footer .btn-secondary {
+    background: #6c757d;
+    color: white;
+}
+
+.work-details-footer .btn-secondary:hover {
+    background: #5a6268;
+}
+
+/* ============================================
+   RESPONSIVE
+   ============================================ */
+
+@media (max-width: 768px) {
+    .works-quick-stats {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .filter-row {
+        flex-direction: column;
+    }
+    
+    .filter-group {
+        width: 100%;
+    }
+    
+    .work-details-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .platform-status-main {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.75rem;
+    }
+    
+    .platform-version {
+        text-align: left;
+    }
+}
+
+@media (max-width: 480px) {
+    .works-quick-stats {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.5rem;
+    }
+    
+    .quick-stat {
+        padding: 0.5rem;
+    }
+    
+    .quick-stat-value {
+        font-size: 1.25rem;
+    }
+    
+    .works-list {
+        max-height: 300px;
+    }
+}

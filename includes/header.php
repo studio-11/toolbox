@@ -23,6 +23,7 @@
     <link rel="stylesheet" href="<?php echo asset('css/brick-tools.css'); ?>">
     <link rel="stylesheet" href="<?php echo asset('css/brick-ideas.css'); ?>">
     <link rel="stylesheet" href="<?php echo asset('css/brick-beta.css'); ?>">
+    <link rel="stylesheet" href="<?php echo asset('css/brick-works.css'); ?>">
 </head>
 <body>
     <!-- Header -->

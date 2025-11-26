@@ -20,6 +20,7 @@
     <script src="<?php echo asset('js/brick-tools.js'); ?>"></script>
     <script src="<?php echo asset('js/brick-ideas.js'); ?>"></script>
     <script src="<?php echo asset('js/brick-beta.js'); ?>"></script>
+    <script src="<?php echo asset('js/brick-works.js'); ?>"></script>
     
     <!-- JS Initialisation -->
     <script>
@@ -114,10 +115,26 @@
             // Initialiser les briques
             try {
                 await BrickTools.init('tools-section');
+            } catch (e) {
+                console.error('Erreur initialisation BrickTools:', e);
+            }
+            
+            try {
                 await BrickIdeas.init('ideas-section');
+            } catch (e) {
+                console.error('Erreur initialisation BrickIdeas:', e);
+            }
+            
+            try {
                 await BrickBeta.init('beta-section');
             } catch (e) {
-                console.error('Erreur initialisation briques:', e);
+                console.error('Erreur initialisation BrickBeta:', e);
+            }
+            
+            try {
+                await BrickWorks.init();
+            } catch (e) {
+                console.error('Erreur initialisation BrickWorks:', e);
             }
         });
     </script>

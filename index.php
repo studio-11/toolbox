@@ -32,6 +32,15 @@ require_once __DIR__ . '/includes/header.php';
                 <span class="hero-stat-value" id="stat-ideas">--</span>
                 <span class="hero-stat-label">Idées proposées</span>
             </div>
+            <!-- Stat Travaux cliquable -->
+            <div class="hero-stat hero-stat-clickable hero-stat-works" id="works-stat-trigger" title="Voir les travaux et mises à jour">
+                <span class="hero-stat-value">Travaux</span>
+                <span class="hero-stat-label">
+                    <span class="platform-status-dot" id="platform-status-dot"></span>
+                    <span id="platform-status-text">Chargement...</span>
+                    <span class="platform-version-inline" id="platform-version-text"></span>
+                </span>
+            </div>
         </div>
         
         <div class="hero-actions">
@@ -88,6 +97,9 @@ require_once __DIR__ . '/includes/header.php';
     </section>
     
 </main>
+
+<!-- Templates Travaux (pour lightbox) -->
+<?php include __DIR__ . '/briques/brick-works.php'; ?>
 
 <!-- Bouton scroll to top -->
 <button class="scroll-to-top" id="scroll-to-top" title="Retour en haut">
