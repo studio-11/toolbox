@@ -1,7 +1,8 @@
 /**
  * IFEN Toolbox - Brique "Idées & Votes"
  * =====================================
- * Gestion des idées proposées, votes et passage en programmation
+ * Version mise à jour avec nouveaux types d'idées
+ * et bouton Programmer visible uniquement pour admin
  */
 
 const BrickIdeas = {
@@ -11,19 +12,18 @@ const BrickIdeas = {
         ideas: [],
         plannedIdeas: [],
         filters: {
-            type: 'all',
-            status: 'pending', // 'pending' ou 'planned'
-            sortBy: 'votes' // 'votes', 'date', 'status'
+            type: '',
+            sortBy: 'votes'
         },
-        userVotes: [] // IDs des idées votées par l'utilisateur
+        userVotes: [],
+        isAdmin: false
     },
     
     // Éléments DOM
     elements: {
         container: null,
         ideasList: null,
-        plannedList: null,
-        form: null
+        plannedContainer: null
     },
     
     // ==================== INITIALISATION ====================
@@ -35,182 +35,94 @@ const BrickIdeas = {
             return;
         }
         
-        this.render();
+        this.elements.ideasList = this.elements.container.querySelector('#ideas-pending-list');
+        this.elements.plannedContainer = this.elements.container.querySelector('#kanban-container');
+        
+        // Vérifier si admin (depuis la config globale)
+        this.state.isAdmin = window.TOOLBOX_CONFIG?.user?.is_admin || false;
+        
         this.bindEvents();
         await this.loadIdeas();
     },
     
-    render() {
-        this.elements.container.innerHTML = `
-            <div class="brick-ideas">
-                <!-- Header -->
-                <div class="brick-header">
-                    <div class="brick-title-wrapper">
-                        <h2 class="brick-title">
-                            <i class="fas fa-lightbulb"></i>
-                            Idées & Votes
-                        </h2>
-                        <p class="brick-subtitle">Proposez vos idées et votez pour celles qui vous plaisent</p>
-                    </div>
-                </div>
-                
-                <!-- Tabs Navigation -->
-                <div class="ideas-tabs">
-                    <button class="tab-btn active" data-tab="pending">
-                        <i class="fas fa-inbox"></i>
-                        Idées en attente
-                        <span class="tab-count" id="pending-count">0</span>
-                    </button>
-                    <button class="tab-btn" data-tab="planned">
-                        <i class="fas fa-calendar-alt"></i>
-                        En programmation
-                        <span class="tab-count" id="planned-count">0</span>
-                    </button>
-                </div>
-                
-                <!-- Tab Content: Pending Ideas -->
-                <div class="tab-content active" id="tab-pending">
-                    <!-- Formulaire de soumission -->
-                    <div class="idea-form-container">
-                        <h3><i class="fas fa-plus-circle"></i> Proposer une nouvelle idée</h3>
-                        <form id="idea-form" class="idea-form">
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label for="idea-title">Titre de l'idée *</label>
-                                    <input type="text" id="idea-title" name="title" required 
-                                           placeholder="Ex: Outil de création de quiz interactifs">
-                                </div>
-                                <div class="form-group">
-                                    <label for="idea-type">Type *</label>
-                                    <select id="idea-type" name="type" required>
-                                        <option value="">Sélectionner...</option>
-                                        <option value="course">🧩 Module de cours</option>
-                                        <option value="platform">⚙️ Fonctionnalité plateforme</option>
-                                        <option value="improvement">✨ Amélioration existante</option>
-                                    </select>
-                                </div>
-                            </div>
-                            
-                            <div class="form-group">
-                                <label for="idea-problem">Quel problème cela résout-il ? *</label>
-                                <textarea id="idea-problem" name="problem" required rows="3"
-                                          placeholder="Décrivez le problème ou le besoin que cette idée adresse..."></textarea>
-                            </div>
-                            
-                            <div class="form-group">
-                                <label for="idea-details">Détails supplémentaires (optionnel)</label>
-                                <textarea id="idea-details" name="details" rows="3"
-                                          placeholder="Ajoutez des précisions, exemples ou références..."></textarea>
-                            </div>
-                            
-                            <div class="form-actions">
-                                <button type="reset" class="btn btn-secondary">
-                                    <i class="fas fa-eraser"></i> Effacer
-                                </button>
-                                <button type="submit" class="btn btn-primary">
-                                    <i class="fas fa-paper-plane"></i> Soumettre l'idée
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                    
-                    <!-- Filtres et Tri -->
-                    <div class="ideas-filters">
-                        <div class="filter-group">
-                            <label>Type</label>
-                            <select id="filter-ideas-type" class="filter-select">
-                                <option value="all">Tous les types</option>
-                                <option value="course">🧩 Module de cours</option>
-                                <option value="platform">⚙️ Plateforme</option>
-                                <option value="improvement">✨ Amélioration</option>
-                            </select>
-                        </div>
-                        
-                        <div class="filter-group">
-                            <label>Trier par</label>
-                            <select id="filter-ideas-sort" class="filter-select">
-                                <option value="votes">Plus votées</option>
-                                <option value="date">Plus récentes</option>
-                            </select>
-                        </div>
-                    </div>
-                    
-                    <!-- Liste des idées -->
-                    <div class="ideas-list" id="ideas-list">
-                        <!-- Généré dynamiquement -->
-                    </div>
-                </div>
-                
-                <!-- Tab Content: Planned Ideas -->
-                <div class="tab-content" id="tab-planned">
-                    <div class="planned-header">
-                        <h3><i class="fas fa-tasks"></i> Idées en cours de développement</h3>
-                        <p>Ces idées ont été sélectionnées et sont en cours de réalisation</p>
-                    </div>
-                    
-                    <!-- Timeline des idées planifiées -->
-                    <div class="planned-timeline" id="planned-list">
-                        <!-- Généré dynamiquement -->
-                    </div>
-                </div>
-            </div>
-        `;
-        
-        // Récupérer les éléments
-        this.elements.ideasList = this.elements.container.querySelector('#ideas-list');
-        this.elements.plannedList = this.elements.container.querySelector('#planned-list');
-        this.elements.form = this.elements.container.querySelector('#idea-form');
-    },
-    
     bindEvents() {
-        // Tabs
-        this.elements.container.querySelectorAll('[data-tab]').forEach(btn => {
-            btn.addEventListener('click', () => {
-                this.switchTab(btn.dataset.tab);
-            });
-        });
+        // Bouton nouvelle idée
+        const btnNewIdea = this.elements.container.querySelector('#btn-new-idea');
+        if (btnNewIdea) {
+            btnNewIdea.addEventListener('click', () => this.showNewIdeaModal());
+        }
         
-        // Formulaire
-        this.elements.form.addEventListener('submit', (e) => {
-            e.preventDefault();
-            this.submitIdea();
+        // Tabs
+        this.elements.container.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => this.switchTab(btn.dataset.tab));
         });
         
         // Filtres
-        this.elements.container.querySelector('#filter-ideas-type')?.addEventListener('change', (e) => {
-            this.state.filters.type = e.target.value;
-            this.renderIdeas();
-        });
+        const filterType = this.elements.container.querySelector('#ideas-filter-type');
+        if (filterType) {
+            filterType.addEventListener('change', () => {
+                this.state.filters.type = filterType.value;
+                this.renderIdeas();
+            });
+        }
         
-        this.elements.container.querySelector('#filter-ideas-sort')?.addEventListener('change', (e) => {
-            this.state.filters.sortBy = e.target.value;
-            this.renderIdeas();
-        });
+        const filterSort = this.elements.container.querySelector('#ideas-filter-sort');
+        if (filterSort) {
+            filterSort.addEventListener('change', () => {
+                this.state.filters.sortBy = filterSort.value;
+                this.renderIdeas();
+            });
+        }
+        
+        // Events délégués pour les cartes
+        if (this.elements.ideasList) {
+            this.elements.ideasList.addEventListener('click', (e) => {
+                const card = e.target.closest('.idea-card');
+                if (!card) return;
+                
+                const ideaId = parseInt(card.dataset.ideaId);
+                
+                if (e.target.closest('.vote-btn')) {
+                    e.stopPropagation();
+                    this.voteIdea(ideaId);
+                    return;
+                }
+                
+                if (e.target.closest('.idea-details-btn')) {
+                    e.stopPropagation();
+                    this.showIdeaDetails(ideaId);
+                    return;
+                }
+                
+                if (e.target.closest('.idea-plan-btn')) {
+                    e.stopPropagation();
+                    this.showPlanningModal(ideaId);
+                    return;
+                }
+            });
+        }
     },
     
     // ==================== CHARGEMENT ====================
     
     async loadIdeas() {
-        ToolboxUtils.showLoading(this.elements.ideasList);
-        ToolboxUtils.showLoading(this.elements.plannedList);
+        if (this.elements.ideasList) {
+            ToolboxUtils.showLoading(this.elements.ideasList);
+        }
         
         try {
             // Charger les idées en attente
-            const pendingIdeas = await ToolboxUtils.apiCall('ideas', 'GET', null, {
-                status: 'pending'
-            });
-            this.state.ideas = pendingIdeas;
+            const pendingIdeas = await ToolboxUtils.apiCall('ideas', 'GET', null, { status: 'pending' });
+            this.state.ideas = pendingIdeas || [];
             
             // Charger les idées planifiées
-            const plannedIdeas = await ToolboxUtils.apiCall('ideas', 'GET', null, {
-                status: 'planned'
-            });
-            this.state.plannedIdeas = plannedIdeas;
+            const plannedIdeas = await ToolboxUtils.apiCall('ideas', 'GET', null, { status: 'planned' });
+            this.state.plannedIdeas = plannedIdeas || [];
             
             // Charger les votes de l'utilisateur
             try {
                 const userVotes = await ToolboxUtils.apiCall('user_votes');
-                this.state.userVotes = userVotes.map(v => v.idea_id);
+                this.state.userVotes = Array.isArray(userVotes) ? userVotes : [];
             } catch (e) {
                 this.state.userVotes = ToolboxUtils.getLocal('voted_ideas', []);
             }
@@ -221,45 +133,53 @@ const BrickIdeas = {
             
         } catch (error) {
             console.error('Error loading ideas:', error);
-            ToolboxUtils.showError(this.elements.ideasList);
+            if (this.elements.ideasList) {
+                ToolboxUtils.showError(this.elements.ideasList);
+            }
         }
     },
     
     // ==================== RENDU ====================
     
     renderIdeas() {
+        if (!this.elements.ideasList) return;
+        
         const filtered = this.filterAndSortIdeas();
         
         if (filtered.length === 0) {
-            ToolboxUtils.showEmptyState(
-                this.elements.ideasList,
-                'fa-lightbulb',
-                'Aucune idée pour le moment',
-                'Soyez le premier à proposer une idée !'
-            );
+            const emptyState = this.elements.container.querySelector('#ideas-pending-empty');
+            if (emptyState) emptyState.style.display = 'flex';
+            this.elements.ideasList.innerHTML = '';
             return;
         }
+        
+        const emptyState = this.elements.container.querySelector('#ideas-pending-empty');
+        if (emptyState) emptyState.style.display = 'none';
         
         this.elements.ideasList.innerHTML = filtered.map((idea, index) => 
             this.createIdeaCard(idea, index)
         ).join('');
-        
-        this.bindIdeaEvents();
     },
     
     filterAndSortIdeas() {
         let filtered = [...this.state.ideas];
         
-        // Filtre type
-        if (this.state.filters.type !== 'all') {
+        // Filtre par type
+        if (this.state.filters.type) {
             filtered = filtered.filter(i => i.type === this.state.filters.type);
         }
         
         // Tri
-        if (this.state.filters.sortBy === 'votes') {
-            filtered.sort((a, b) => (b.votes_count || 0) - (a.votes_count || 0));
-        } else if (this.state.filters.sortBy === 'date') {
-            filtered.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+        switch (this.state.filters.sortBy) {
+            case 'votes':
+                filtered.sort((a, b) => (b.votes_count || 0) - (a.votes_count || 0));
+                break;
+            case 'recent':
+                filtered.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+                break;
+            case 'oldest':
+                filtered.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+                break;
         }
         
         return filtered;
@@ -267,57 +187,43 @@ const BrickIdeas = {
     
     createIdeaCard(idea, index) {
         const hasVoted = this.state.userVotes.includes(idea.id);
-        const typeInfo = TOOLBOX_CONFIG.ideaTypes[idea.type] || TOOLBOX_CONFIG.ideaTypes.course;
-        const statusInfo = TOOLBOX_CONFIG.ideaStatus[idea.status] || TOOLBOX_CONFIG.ideaStatus.proposed;
+        const typeInfo = TOOLBOX_CONFIG.ideaTypes[idea.type] || TOOLBOX_CONFIG.ideaTypes.other;
         
         return `
-            <article class="idea-card" data-idea-id="${idea.id}" 
-                     style="animation-delay: ${index * 0.05}s">
-                <div class="idea-vote-section">
-                    <button class="vote-btn ${hasVoted ? 'voted' : ''}" 
-                            data-action="vote" ${hasVoted ? 'disabled' : ''}>
-                        <i class="fas fa-arrow-up"></i>
+            <article class="idea-card" data-idea-id="${idea.id}" style="animation-delay: ${index * 0.05}s">
+                <div class="idea-card-vote">
+                    <button class="vote-btn ${hasVoted ? 'voted' : ''}" ${hasVoted ? 'disabled' : ''} title="${hasVoted ? 'Vous avez voté' : 'Voter pour cette idée'}">
+                        <i class="fas fa-chevron-up"></i>
                     </button>
                     <span class="vote-count">${idea.votes_count || 0}</span>
                     <span class="vote-label">votes</span>
                 </div>
                 
-                <div class="idea-content">
+                <div class="idea-card-content">
                     <div class="idea-header">
-                        <span class="idea-type">
+                        <span class="idea-type-badge">
                             ${typeInfo.emoji} ${typeInfo.label}
                         </span>
-                        ${ToolboxUtils.createStatusBadge(idea.status, TOOLBOX_CONFIG.ideaStatus)}
+                        <span class="idea-date">${ToolboxUtils.formatRelativeDate(idea.created_at)}</span>
                     </div>
                     
                     <h3 class="idea-title">${ToolboxUtils.escapeHtml(idea.title)}</h3>
-                    
-                    <p class="idea-problem">${ToolboxUtils.escapeHtml(idea.problem)}</p>
-                    
-                    ${idea.details ? `
-                        <div class="idea-details">
-                            <button class="toggle-details" data-action="toggle-details">
-                                <i class="fas fa-chevron-down"></i> Voir les détails
-                            </button>
-                            <div class="details-content hidden">
-                                ${ToolboxUtils.escapeHtml(idea.details)}
-                            </div>
-                        </div>
-                    ` : ''}
+                    <p class="idea-problem">${ToolboxUtils.escapeHtml(ToolboxUtils.truncate(idea.problem, 150))}</p>
                     
                     <div class="idea-footer">
                         <span class="idea-author">
-                            <i class="fas fa-user"></i> ${idea.user_name || 'Anonyme'}
+                            <i class="fas fa-user"></i>
+                            <span>${idea.user_name || 'Anonyme'}</span>
                         </span>
-                        <span class="idea-date">
-                            <i class="fas fa-clock"></i> ${ToolboxUtils.formatRelativeDate(idea.created_at)}
-                        </span>
-                        
                         <div class="idea-actions">
-                            <button class="btn btn-sm btn-secondary" data-action="plan" 
-                                    title="Passer en programmation">
-                                <i class="fas fa-calendar-plus"></i> Programmer
+                            <button class="btn btn-sm idea-details-btn">
+                                <i class="fas fa-info-circle"></i> Détails
                             </button>
+                            ${this.state.isAdmin ? `
+                                <button class="btn btn-sm btn-primary idea-plan-btn admin-only-btn" title="Programmer cette idée">
+                                    <i class="fas fa-calendar-plus"></i> Programmer
+                                </button>
+                            ` : ''}
                         </div>
                     </div>
                 </div>
@@ -326,15 +232,7 @@ const BrickIdeas = {
     },
     
     renderPlannedIdeas() {
-        if (this.state.plannedIdeas.length === 0) {
-            ToolboxUtils.showEmptyState(
-                this.elements.plannedList,
-                'fa-calendar-alt',
-                'Aucune idée en programmation',
-                'Les idées sélectionnées apparaîtront ici'
-            );
-            return;
-        }
+        if (!this.elements.plannedContainer) return;
         
         // Grouper par phase
         const byPhase = {};
@@ -344,137 +242,146 @@ const BrickIdeas = {
             byPhase[phase].push(idea);
         });
         
-        this.elements.plannedList.innerHTML = `
-            <div class="planned-phases">
-                ${Object.entries(TOOLBOX_CONFIG.devPhases).map(([phase, info]) => `
-                    <div class="phase-column" data-phase="${phase}">
-                        <div class="phase-header">
-                            <i class="fas ${info.icon}"></i>
-                            <span>${info.label}</span>
-                            <span class="phase-count">${(byPhase[phase] || []).length}</span>
-                        </div>
-                        <div class="phase-items">
-                            ${(byPhase[phase] || []).map(idea => this.createPlannedCard(idea)).join('')}
-                        </div>
-                    </div>
-                `).join('')}
-            </div>
-        `;
+        // Mettre à jour les compteurs et les cartes de chaque colonne
+        Object.keys(TOOLBOX_CONFIG.devPhases).forEach(phase => {
+            const column = this.elements.plannedContainer.querySelector(`[data-phase="${phase}"]`);
+            if (!column) return;
+            
+            const countEl = column.querySelector('.phase-count');
+            const cardsEl = column.querySelector('.kanban-cards');
+            
+            const ideas = byPhase[phase] || [];
+            
+            if (countEl) countEl.textContent = ideas.length;
+            
+            if (cardsEl) {
+                cardsEl.innerHTML = ideas.map(idea => this.createKanbanCard(idea)).join('');
+            }
+        });
         
-        this.bindPlannedEvents();
+        // Gérer l'état vide
+        const emptyState = this.elements.container.querySelector('#ideas-planned-empty');
+        if (emptyState) {
+            emptyState.style.display = this.state.plannedIdeas.length === 0 ? 'flex' : 'none';
+        }
     },
     
-    createPlannedCard(idea) {
+    createKanbanCard(idea) {
         const priorityInfo = TOOLBOX_CONFIG.priorities[idea.priority] || TOOLBOX_CONFIG.priorities.medium;
         const progress = idea.progress_percent || TOOLBOX_CONFIG.devPhases[idea.current_phase]?.progress || 0;
         
         return `
-            <div class="planned-card" data-idea-id="${idea.id}">
-                <div class="planned-card-header">
-                    <span class="planned-title">${ToolboxUtils.escapeHtml(idea.title)}</span>
-                    ${ToolboxUtils.createPriorityBadge(idea.priority)}
+            <div class="kanban-card" data-idea-id="${idea.id}">
+                <div class="kanban-card-header">
+                    <span class="priority-badge" style="background: ${priorityInfo.color}20; color: ${priorityInfo.color}">
+                        <i class="fas ${priorityInfo.icon}"></i> ${priorityInfo.label}
+                    </span>
                 </div>
                 
-                ${ToolboxUtils.createProgressBar(progress)}
+                <h4 class="kanban-card-title">${ToolboxUtils.escapeHtml(idea.title)}</h4>
                 
-                <div class="planned-meta">
-                    ${idea.planned_start_date ? `
-                        <span class="meta-item">
-                            <i class="fas fa-play"></i> ${ToolboxUtils.formatDate(idea.planned_start_date)}
+                <div class="kanban-card-progress">
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: ${progress}%"></div>
+                    </div>
+                    <span class="progress-text">${progress}%</span>
+                </div>
+                
+                <div class="kanban-card-meta">
+                    ${idea.assigned_to ? `
+                        <span class="assigned-to" title="Assigné à">
+                            <i class="fas fa-user"></i>
+                            <span>${idea.assigned_to}</span>
                         </span>
                     ` : ''}
                     ${idea.planned_end_date ? `
-                        <span class="meta-item">
-                            <i class="fas fa-flag-checkered"></i> ${ToolboxUtils.formatDate(idea.planned_end_date)}
+                        <span class="due-date" title="Date prévue">
+                            <i class="fas fa-calendar"></i>
+                            <span>${ToolboxUtils.formatDate(idea.planned_end_date)}</span>
                         </span>
                     ` : ''}
-                    ${idea.assigned_to ? `
-                        <span class="meta-item">
-                            <i class="fas fa-user"></i> ${idea.assigned_to}
-                        </span>
-                    ` : ''}
-                </div>
-                
-                <div class="planned-actions">
-                    <button class="btn btn-xs btn-secondary" data-action="view-details">
-                        <i class="fas fa-eye"></i>
-                    </button>
-                    <button class="btn btn-xs btn-secondary" data-action="edit-planning">
-                        <i class="fas fa-edit"></i>
-                    </button>
                 </div>
             </div>
         `;
     },
     
-    // ==================== EVENTS ====================
-    
-    bindIdeaEvents() {
-        this.elements.ideasList.querySelectorAll('.idea-card').forEach(card => {
-            const ideaId = parseInt(card.dataset.ideaId);
-            
-            // Vote
-            card.querySelector('[data-action="vote"]')?.addEventListener('click', () => {
-                this.voteIdea(ideaId);
-            });
-            
-            // Toggle details
-            card.querySelector('[data-action="toggle-details"]')?.addEventListener('click', (e) => {
-                const btn = e.currentTarget;
-                const content = card.querySelector('.details-content');
-                content.classList.toggle('hidden');
-                btn.innerHTML = content.classList.contains('hidden') 
-                    ? '<i class="fas fa-chevron-down"></i> Voir les détails'
-                    : '<i class="fas fa-chevron-up"></i> Masquer les détails';
-            });
-            
-            // Programmer
-            card.querySelector('[data-action="plan"]')?.addEventListener('click', () => {
-                this.showPlanningModal(ideaId);
-            });
-        });
-    },
-    
-    bindPlannedEvents() {
-        this.elements.plannedList.querySelectorAll('.planned-card').forEach(card => {
-            const ideaId = parseInt(card.dataset.ideaId);
-            
-            card.querySelector('[data-action="view-details"]')?.addEventListener('click', () => {
-                this.showPlannedDetails(ideaId);
-            });
-            
-            card.querySelector('[data-action="edit-planning"]')?.addEventListener('click', () => {
-                this.showEditPlanningModal(ideaId);
-            });
-        });
-    },
-    
-    switchTab(tab) {
-        // Update buttons
-        this.elements.container.querySelectorAll('[data-tab]').forEach(btn => {
-            btn.classList.toggle('active', btn.dataset.tab === tab);
-        });
-        
-        // Update content
-        this.elements.container.querySelectorAll('.tab-content').forEach(content => {
-            content.classList.toggle('active', content.id === `tab-${tab}`);
-        });
-        
-        this.state.filters.status = tab;
-    },
-    
     updateCounts() {
-        const pendingCount = this.elements.container.querySelector('#pending-count');
-        const plannedCount = this.elements.container.querySelector('#planned-count');
+        const pendingCount = this.elements.container.querySelector('#count-pending');
+        const plannedCount = this.elements.container.querySelector('#count-planned');
         
         if (pendingCount) pendingCount.textContent = this.state.ideas.length;
         if (plannedCount) plannedCount.textContent = this.state.plannedIdeas.length;
     },
     
+    switchTab(tab) {
+        this.elements.container.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.tab === tab);
+        });
+        
+        this.elements.container.querySelectorAll('.tab-content').forEach(content => {
+            content.classList.toggle('active', content.id === `tab-${tab}`);
+        });
+    },
+    
     // ==================== ACTIONS ====================
     
-    async submitIdea() {
-        const formData = new FormData(this.elements.form);
+    showNewIdeaModal() {
+        const content = `
+            <div class="new-idea-form">
+                <form id="form-new-idea">
+                    <div class="form-group">
+                        <label for="idea-title-input">Titre de l'idée *</label>
+                        <input type="text" id="idea-title-input" name="title" class="form-input" 
+                               placeholder="Ex: Outil de création de quiz interactifs" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="idea-type-input">Type d'idée *</label>
+                        <select id="idea-type-input" name="type" class="form-input" required>
+                            <option value="">-- Sélectionner un type --</option>
+                            <option value="course_activity">📚 Activité de cours</option>
+                            <option value="course_resource">📄 Ressource de cours</option>
+                            <option value="platform_feature">⚙️ Fonctionnalité plateforme</option>
+                            <option value="other">📌 Autres</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="idea-problem-input">Quel problème cela résout-il ? *</label>
+                        <textarea id="idea-problem-input" name="problem" class="form-textarea" rows="3" 
+                                  placeholder="Décrivez le besoin ou le problème que cette idée adresse..." required></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="idea-details-input">Détails supplémentaires (optionnel)</label>
+                        <textarea id="idea-details-input" name="details" class="form-textarea" rows="3"
+                                  placeholder="Ajoutez des précisions, exemples, liens utiles..."></textarea>
+                    </div>
+                </form>
+            </div>
+        `;
+        
+        const modal = ToolboxUtils.createModal({
+            title: 'Proposer une nouvelle idée',
+            size: 'medium',
+            content: content,
+            footer: `
+                <button class="btn btn-secondary" data-modal-close>Annuler</button>
+                <button class="btn btn-primary" id="btn-submit-idea">
+                    <i class="fas fa-paper-plane"></i> Soumettre l'idée
+                </button>
+            `
+        });
+        
+        modal.querySelector('#btn-submit-idea').addEventListener('click', async () => {
+            await this.submitIdea(modal);
+        });
+    },
+    
+    async submitIdea(modal) {
+        const form = modal.querySelector('#form-new-idea');
+        const formData = new FormData(form);
+        
         const data = {
             title: formData.get('title'),
             type: formData.get('type'),
@@ -490,8 +397,9 @@ const BrickIdeas = {
         try {
             await ToolboxUtils.apiCall('idea', 'POST', data);
             
+            ToolboxUtils.closeModal(modal);
             ToolboxUtils.showNotification('Votre idée a été soumise avec succès !', 'success');
-            this.elements.form.reset();
+            
             await this.loadIdeas();
             
         } catch (error) {
@@ -508,11 +416,9 @@ const BrickIdeas = {
         try {
             await ToolboxUtils.apiCall('vote', 'POST', { idea_id: ideaId });
             
-            // Mettre à jour localement
             this.state.userVotes.push(ideaId);
             ToolboxUtils.saveLocal('voted_ideas', this.state.userVotes);
             
-            // Mettre à jour le compteur
             const idea = this.state.ideas.find(i => i.id === ideaId);
             if (idea) idea.votes_count = (idea.votes_count || 0) + 1;
             
@@ -524,83 +430,149 @@ const BrickIdeas = {
         }
     },
     
+    showIdeaDetails(ideaId) {
+        const idea = this.state.ideas.find(i => i.id === ideaId);
+        if (!idea) return;
+        
+        const typeInfo = TOOLBOX_CONFIG.ideaTypes[idea.type] || TOOLBOX_CONFIG.ideaTypes.other;
+        
+        const content = `
+            <div class="idea-details">
+                <div class="idea-meta-header">
+                    <span class="idea-type-badge large">${typeInfo.emoji} ${typeInfo.label}</span>
+                    <span class="votes-badge"><i class="fas fa-arrow-up"></i> ${idea.votes_count || 0} votes</span>
+                </div>
+                
+                <div class="detail-section">
+                    <h4><i class="fas fa-question-circle"></i> Problème à résoudre</h4>
+                    <p>${ToolboxUtils.escapeHtml(idea.problem)}</p>
+                </div>
+                
+                ${idea.details ? `
+                    <div class="detail-section">
+                        <h4><i class="fas fa-align-left"></i> Détails supplémentaires</h4>
+                        <p>${ToolboxUtils.escapeHtml(idea.details)}</p>
+                    </div>
+                ` : ''}
+                
+                <div class="detail-section">
+                    <h4><i class="fas fa-info-circle"></i> Informations</h4>
+                    <div class="detail-grid">
+                        <div class="detail-item">
+                            <span class="label">Proposée par</span>
+                            <span class="value">${idea.user_name || 'Anonyme'}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="label">Date</span>
+                            <span class="value">${ToolboxUtils.formatDate(idea.created_at)}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        ToolboxUtils.createModal({
+            title: idea.title,
+            size: 'medium',
+            content: content,
+            footer: `
+                <button class="btn btn-secondary" data-modal-close>Fermer</button>
+                ${this.state.isAdmin ? `
+                    <button class="btn btn-primary" id="btn-plan-from-details" data-idea-id="${ideaId}">
+                        <i class="fas fa-calendar-plus"></i> Programmer
+                    </button>
+                ` : ''}
+            `
+        });
+        
+        const planBtn = document.getElementById('btn-plan-from-details');
+        if (planBtn) {
+            planBtn.addEventListener('click', () => {
+                document.querySelector('.toolbox-modal-overlay')?.remove();
+                this.showPlanningModal(ideaId);
+            });
+        }
+    },
+    
     showPlanningModal(ideaId) {
+        if (!this.state.isAdmin) {
+            ToolboxUtils.showNotification('Action réservée aux administrateurs', 'warning');
+            return;
+        }
+        
         const idea = this.state.ideas.find(i => i.id === ideaId);
         if (!idea) return;
         
         const today = new Date().toISOString().split('T')[0];
         
-        const modal = ToolboxUtils.createModal({
-            title: 'Passer en programmation',
-            size: 'medium',
-            content: `
-                <div class="planning-form">
-                    <div class="idea-summary">
-                        <h4>${ToolboxUtils.escapeHtml(idea.title)}</h4>
-                        <p>${ToolboxUtils.escapeHtml(idea.problem)}</p>
-                        <span class="votes-badge">
-                            <i class="fas fa-arrow-up"></i> ${idea.votes_count || 0} votes
-                        </span>
+        const content = `
+            <div class="planning-form">
+                <div class="idea-summary">
+                    <h4>${ToolboxUtils.escapeHtml(idea.title)}</h4>
+                    <p>${ToolboxUtils.escapeHtml(ToolboxUtils.truncate(idea.problem, 100))}</p>
+                    <span class="votes-badge"><i class="fas fa-arrow-up"></i> ${idea.votes_count || 0} votes</span>
+                </div>
+                
+                <hr>
+                
+                <form id="planning-form">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="plan-start">Date de début prévue *</label>
+                            <input type="date" id="plan-start" name="planned_start_date" value="${today}" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="plan-end">Date de fin prévue</label>
+                            <input type="date" id="plan-end" name="planned_end_date">
+                        </div>
                     </div>
                     
-                    <hr>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="plan-priority">Priorité *</label>
+                            <select id="plan-priority" name="priority" required>
+                                <option value="low">🟢 Basse</option>
+                                <option value="medium" selected>🟡 Moyenne</option>
+                                <option value="high">🟠 Haute</option>
+                                <option value="critical">🔴 Critique</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="plan-phase">Phase initiale</label>
+                            <select id="plan-phase" name="current_phase">
+                                ${Object.entries(TOOLBOX_CONFIG.devPhases).map(([key, val]) => 
+                                    `<option value="${key}">${val.label}</option>`
+                                ).join('')}
+                            </select>
+                        </div>
+                    </div>
                     
-                    <form id="planning-form">
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="plan-start">Date de début prévue *</label>
-                                <input type="date" id="plan-start" name="planned_start_date" 
-                                       value="${today}" required>
-                            </div>
-                            <div class="form-group">
-                                <label for="plan-end">Date de fin prévue</label>
-                                <input type="date" id="plan-end" name="planned_end_date">
-                            </div>
-                        </div>
-                        
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="plan-priority">Priorité *</label>
-                                <select id="plan-priority" name="priority" required>
-                                    <option value="low">🟢 Basse</option>
-                                    <option value="medium" selected>🟡 Moyenne</option>
-                                    <option value="high">🟠 Haute</option>
-                                    <option value="critical">🔴 Critique</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label for="plan-phase">Phase initiale</label>
-                                <select id="plan-phase" name="current_phase">
-                                    ${Object.entries(TOOLBOX_CONFIG.devPhases).map(([key, val]) => 
-                                        `<option value="${key}">${val.label}</option>`
-                                    ).join('')}
-                                </select>
-                            </div>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="plan-assigned">Assigné à</label>
-                            <input type="text" id="plan-assigned" name="assigned_to" 
-                                   placeholder="Nom du responsable">
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="plan-notes">Notes de développement</label>
-                            <textarea id="plan-notes" name="dev_notes" rows="3"
-                                      placeholder="Notes techniques, contraintes, etc."></textarea>
-                        </div>
-                    </form>
-                </div>
-            `,
+                    <div class="form-group">
+                        <label for="plan-assigned">Assigné à</label>
+                        <input type="text" id="plan-assigned" name="assigned_to" placeholder="Nom du responsable">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="plan-notes">Notes de développement</label>
+                        <textarea id="plan-notes" name="dev_notes" rows="3" placeholder="Notes techniques, contraintes..."></textarea>
+                    </div>
+                </form>
+            </div>
+        `;
+        
+        const modal = ToolboxUtils.createModal({
+            title: 'Programmer cette idée',
+            size: 'medium',
+            content: content,
             footer: `
                 <button class="btn btn-secondary" data-modal-close>Annuler</button>
-                <button class="btn btn-primary" data-action="confirm-plan">
+                <button class="btn btn-primary" id="btn-confirm-plan">
                     <i class="fas fa-rocket"></i> Lancer la programmation
                 </button>
             `
         });
         
-        modal.querySelector('[data-action="confirm-plan"]').addEventListener('click', async () => {
+        modal.querySelector('#btn-confirm-plan').addEventListener('click', async () => {
             const form = modal.querySelector('#planning-form');
             const formData = new FormData(form);
             
@@ -614,217 +586,71 @@ const BrickIdeas = {
                 dev_notes: formData.get('dev_notes')
             };
             
-            await this.planIdea(planData, modal);
+            try {
+                await ToolboxUtils.apiCall('plan_idea', 'POST', planData);
+                
+                ToolboxUtils.closeModal(modal);
+                ToolboxUtils.showNotification('Idée passée en programmation !', 'success');
+                
+                await this.loadIdeas();
+                this.switchTab('planned');
+                
+            } catch (error) {
+                ToolboxUtils.showNotification('Erreur lors de la planification', 'error');
+            }
         });
     },
     
-    async planIdea(planData, modal) {
-        try {
-            await ToolboxUtils.apiCall('plan_idea', 'POST', planData);
-            
-            ToolboxUtils.closeModal(modal);
-            ToolboxUtils.showNotification('Idée passée en programmation !', 'success');
-            
-            // Recharger les données
-            await this.loadIdeas();
-            
-            // Basculer vers l'onglet planifié
-            this.switchTab('planned');
-            
-        } catch (error) {
-            ToolboxUtils.showNotification('Erreur lors de la planification', 'error');
+    // Méthode pour ouvrir le panel programmer (appelée depuis le bouton admin)
+    openProgrammerPanel() {
+        if (!this.state.isAdmin) {
+            ToolboxUtils.showNotification('Action réservée aux administrateurs', 'warning');
+            return;
         }
-    },
-    
-    showPlannedDetails(ideaId) {
-        const idea = this.state.plannedIdeas.find(i => i.id === ideaId);
-        if (!idea) return;
         
-        const phaseInfo = TOOLBOX_CONFIG.devPhases[idea.current_phase] || TOOLBOX_CONFIG.devPhases.analysis;
+        // Afficher une liste des idées les plus votées pour en sélectionner une
+        const topIdeas = [...this.state.ideas].sort((a, b) => (b.votes_count || 0) - (a.votes_count || 0)).slice(0, 10);
         
-        ToolboxUtils.createModal({
-            title: idea.title,
-            size: 'medium',
-            content: `
-                <div class="planned-details">
-                    <div class="detail-section">
-                        <h4><i class="fas fa-info-circle"></i> Description</h4>
-                        <p>${ToolboxUtils.escapeHtml(idea.problem)}</p>
-                        ${idea.details ? `<p class="details-text">${ToolboxUtils.escapeHtml(idea.details)}</p>` : ''}
-                    </div>
-                    
-                    <div class="detail-section">
-                        <h4><i class="fas fa-tasks"></i> Avancement</h4>
-                        <div class="progress-visual">
-                            <div class="phase-indicator active">
-                                <i class="fas ${phaseInfo.icon}"></i>
-                                <span>${phaseInfo.label}</span>
+        const content = `
+            <div class="programmer-panel">
+                <p>Sélectionnez une idée à programmer :</p>
+                <div class="ideas-selection-list">
+                    ${topIdeas.length === 0 ? `
+                        <div class="empty-state">
+                            <i class="fas fa-inbox"></i>
+                            <p>Aucune idée disponible</p>
+                        </div>
+                    ` : topIdeas.map(idea => `
+                        <div class="idea-selection-item" data-idea-id="${idea.id}">
+                            <div class="idea-votes">
+                                <i class="fas fa-arrow-up"></i>
+                                <span>${idea.votes_count || 0}</span>
                             </div>
-                            ${ToolboxUtils.createProgressBar(idea.progress_percent || phaseInfo.progress)}
+                            <div class="idea-info">
+                                <strong>${ToolboxUtils.escapeHtml(idea.title)}</strong>
+                                <small>${ToolboxUtils.escapeHtml(ToolboxUtils.truncate(idea.problem, 80))}</small>
+                            </div>
+                            <button class="btn btn-sm btn-primary select-idea-btn">
+                                <i class="fas fa-check"></i> Sélectionner
+                            </button>
                         </div>
-                    </div>
-                    
-                    <div class="detail-grid">
-                        <div class="detail-item">
-                            <span class="label">Priorité</span>
-                            ${ToolboxUtils.createPriorityBadge(idea.priority)}
-                        </div>
-                        <div class="detail-item">
-                            <span class="label">Début prévu</span>
-                            <span class="value">${ToolboxUtils.formatDate(idea.planned_start_date) || '-'}</span>
-                        </div>
-                        <div class="detail-item">
-                            <span class="label">Fin prévue</span>
-                            <span class="value">${ToolboxUtils.formatDate(idea.planned_end_date) || '-'}</span>
-                        </div>
-                        <div class="detail-item">
-                            <span class="label">Assigné à</span>
-                            <span class="value">${idea.assigned_to || '-'}</span>
-                        </div>
-                    </div>
-                    
-                    ${idea.dev_notes ? `
-                        <div class="detail-section">
-                            <h4><i class="fas fa-sticky-note"></i> Notes de développement</h4>
-                            <div class="notes-box">${ToolboxUtils.escapeHtml(idea.dev_notes)}</div>
-                        </div>
-                    ` : ''}
-                    
-                    <div class="detail-section">
-                        <h4><i class="fas fa-history"></i> Historique</h4>
-                        <div class="history-item">
-                            <span class="date">${ToolboxUtils.formatDate(idea.created_at)}</span>
-                            <span class="event">Idée proposée par ${idea.user_name || 'Anonyme'}</span>
-                        </div>
-                        <div class="history-item">
-                            <span class="date">${ToolboxUtils.formatDate(idea.planned_at)}</span>
-                            <span class="event">Passage en programmation</span>
-                        </div>
-                    </div>
+                    `).join('')}
                 </div>
-            `
-        });
-    },
-    
-    showEditPlanningModal(ideaId) {
-        const idea = this.state.plannedIdeas.find(i => i.id === ideaId);
-        if (!idea) return;
+            </div>
+        `;
         
         const modal = ToolboxUtils.createModal({
-            title: 'Modifier la planification',
+            title: 'Programmer une idée',
             size: 'medium',
-            content: `
-                <form id="edit-planning-form">
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="edit-phase">Phase actuelle</label>
-                            <select id="edit-phase" name="current_phase">
-                                ${Object.entries(TOOLBOX_CONFIG.devPhases).map(([key, val]) => 
-                                    `<option value="${key}" ${idea.current_phase === key ? 'selected' : ''}>
-                                        ${val.label}
-                                    </option>`
-                                ).join('')}
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label for="edit-progress">Progression (%)</label>
-                            <input type="number" id="edit-progress" name="progress_percent" 
-                                   value="${idea.progress_percent || 0}" min="0" max="100">
-                        </div>
-                    </div>
-                    
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="edit-start">Date de début</label>
-                            <input type="date" id="edit-start" name="planned_start_date" 
-                                   value="${idea.planned_start_date || ''}">
-                        </div>
-                        <div class="form-group">
-                            <label for="edit-end">Date de fin</label>
-                            <input type="date" id="edit-end" name="planned_end_date"
-                                   value="${idea.planned_end_date || ''}">
-                        </div>
-                    </div>
-                    
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="edit-priority">Priorité</label>
-                            <select id="edit-priority" name="priority">
-                                ${Object.entries(TOOLBOX_CONFIG.priorities).map(([key, val]) => 
-                                    `<option value="${key}" ${idea.priority === key ? 'selected' : ''}>
-                                        ${val.label}
-                                    </option>`
-                                ).join('')}
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label for="edit-assigned">Assigné à</label>
-                            <input type="text" id="edit-assigned" name="assigned_to"
-                                   value="${idea.assigned_to || ''}">
-                        </div>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="edit-notes">Notes</label>
-                        <textarea id="edit-notes" name="dev_notes" rows="3">${idea.dev_notes || ''}</textarea>
-                    </div>
-                </form>
-            `,
-            footer: `
-                <button class="btn btn-danger" data-action="unplan">
-                    <i class="fas fa-undo"></i> Retirer de la programmation
-                </button>
-                <button class="btn btn-secondary" data-modal-close>Annuler</button>
-                <button class="btn btn-primary" data-action="save">
-                    <i class="fas fa-save"></i> Enregistrer
-                </button>
-            `
+            content: content
         });
         
-        // Save
-        modal.querySelector('[data-action="save"]').addEventListener('click', async () => {
-            const form = modal.querySelector('#edit-planning-form');
-            const formData = new FormData(form);
-            
-            const updateData = {
-                idea_id: ideaId,
-                current_phase: formData.get('current_phase'),
-                progress_percent: parseInt(formData.get('progress_percent')),
-                planned_start_date: formData.get('planned_start_date'),
-                planned_end_date: formData.get('planned_end_date'),
-                priority: formData.get('priority'),
-                assigned_to: formData.get('assigned_to'),
-                dev_notes: formData.get('dev_notes')
-            };
-            
-            try {
-                await ToolboxUtils.apiCall('update_planning', 'PUT', updateData);
+        modal.querySelectorAll('.select-idea-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const ideaId = parseInt(btn.closest('.idea-selection-item').dataset.ideaId);
                 ToolboxUtils.closeModal(modal);
-                ToolboxUtils.showNotification('Planification mise à jour', 'success');
-                await this.loadIdeas();
-            } catch (error) {
-                ToolboxUtils.showNotification('Erreur lors de la mise à jour', 'error');
-            }
-        });
-        
-        // Unplan
-        modal.querySelector('[data-action="unplan"]').addEventListener('click', async () => {
-            const confirmed = await ToolboxUtils.confirmAction(
-                'Voulez-vous vraiment retirer cette idée de la programmation ? Elle retournera dans la liste des idées en attente.',
-                'Confirmer le retrait'
-            );
-            
-            if (confirmed) {
-                try {
-                    await ToolboxUtils.apiCall('unplan_idea', 'DELETE', { idea_id: ideaId });
-                    ToolboxUtils.closeModal(modal);
-                    ToolboxUtils.showNotification('Idée retirée de la programmation', 'success');
-                    await this.loadIdeas();
-                    this.switchTab('pending');
-                } catch (error) {
-                    ToolboxUtils.showNotification('Erreur lors du retrait', 'error');
-                }
-            }
+                this.showPlanningModal(ideaId);
+            });
         });
     }
 };

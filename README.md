@@ -1,297 +1,237 @@
-# 🧰 IFEN Toolbox - Architecture PHP Modulaire
+# IFEN Toolbox - Frontend Implementation Summary
 
-## 📁 Structure des fichiers
+## 📁 Structure des fichiers créés
 
 ```
 toolbox/
-│
-├── 📄 index.php                     # Page principale (assembleur)
-│
-├── 📂 includes/                     # Fichiers partagés
-│   ├── config.php                  # Configuration (DB, chemins, helpers)
-│   ├── header.php                  # En-tête HTML + navigation
-│   └── footer.php                  # Pied de page + scripts JS
-│
-├── 📂 briques/                      # ⭐ BRIQUES MODULAIRES
-│   ├── brick-tools.php             # Brique 1: Outils Disponibles
-│   ├── brick-ideas.php             # Brique 2: Idées & Votes
-│   └── brick-beta.php              # Brique 3: Beta Testing
-│
-├── 📂 css/
-│   ├── base.css                    # Variables IFEN + composants
-│   ├── layout.css                  # Header, hero, footer
-│   ├── brick-tools.css             # Styles Brique 1
-│   ├── brick-ideas.css             # Styles Brique 2
-│   └── brick-beta.css              # Styles Brique 3
-│
-├── 📂 js/
-│   ├── config.js                   # Configuration JS
-│   ├── utils.js                    # Utilitaires partagés
-│   ├── brick-tools.js              # Logique Brique 1
-│   ├── brick-ideas.js              # Logique Brique 2
-│   └── brick-beta.js               # Logique Brique 3
-│
-├── 📂 api/
-│   └── api.php                     # API backend (endpoints)
-│
-└── 📂 sql/
-    ├── schema.sql                  # Schéma complet BDD
-    ├── analyse-simple.sql          # Script d'analyse
-    └── mise-a-jour-incrementale.sql # Mise à jour
+├── api/
+│   └── api.php                 # Endpoints API (login, beta, ideas, etc.)
+├── briques/
+│   ├── brick-beta.php          # Template PHP brique Beta Test
+│   ├── brick-ideas.php         # Template PHP brique Idées & Votes
+│   └── brick-tools.php         # Template PHP brique Outils
+├── css/
+│   └── additional.css          # Nouveaux styles (login, audience, difficulté, etc.)
+├── includes/
+│   ├── config.php              # Configuration + fonctions auth
+│   ├── header.php              # Header avec menu utilisateur
+│   └── footer.php              # Footer avec initialisation JS
+├── js/
+│   ├── config.js               # Configuration globale JS
+│   ├── utils.js                # Utilitaires (API, modals, notifications)
+│   ├── brick-tools.js          # Logique brique Outils
+│   ├── brick-beta.js           # Logique brique Beta Test
+│   ├── brick-ideas.js          # Logique brique Idées & Votes
+│   └── brick-works.js          # Logique statut plateforme
+├── sql/
+│   └── frontend-updates.sql    # Requêtes SQL (tables, vues, procédures)
+├── index.php                   # Page principale (requiert login)
+├── login.php                   # Page de connexion IAM
+└── logout.php                  # Script de déconnexion
 ```
 
 ---
 
-## 🎯 Avantage de cette architecture
+## 🔐 Système de Login IAM
 
-### ✅ Travail isolé par brique
+### Fichiers concernés :
+- `login.php` - Page de connexion
+- `includes/config.php` - Fonctions d'authentification
+- `logout.php` - Déconnexion
+- `api/api.php` - Endpoints login/logout/check_auth
 
-**Pour modifier la Brique 1 (Outils)** → Éditer uniquement :
-- `briques/brick-tools.php` (HTML/PHP)
-- `js/brick-tools.js` (JavaScript)
-- `css/brick-tools.css` (Styles)
+### Fonctionnement :
+1. L'utilisateur entre son identifiant IAM
+2. Vérification dans `mdl_user` (deleted=0, suspended=0)
+3. Vérification blacklist dans `toolbox_users`
+4. Création/mise à jour utilisateur toolbox
+5. Session PHP créée avec structure :
+```php
+$_SESSION['toolbox_user'] = [
+    'id' => $toolboxUserId,
+    'mdl_user_id' => $mdlUserId,
+    'username' => 'jdupont',
+    'name' => 'Jean Dupont',
+    'email' => 'jean.dupont@edu.lu',
+    'is_admin' => false
+];
+```
 
-**Pour modifier la Brique 2 (Idées)** → Éditer uniquement :
-- `briques/brick-ideas.php`
-- `js/brick-ideas.js`
-- `css/brick-ideas.css`
-
-**Pour modifier la Brique 3 (Beta)** → Éditer uniquement :
-- `briques/brick-beta.php`
-- `js/brick-beta.js`
-- `css/brick-beta.css`
-
-### ✅ Pas d'impact sur les autres briques
-
-Chaque brique est **autonome**. Modifier une brique n'affecte pas les autres.
+### Fonctions disponibles :
+- `isLoggedIn()` - Vérifie si connecté
+- `isAdmin()` - Vérifie si admin
+- `requireLogin()` - Redirige vers login si non connecté
+- `requireAdmin()` - Vérifie droits admin
+- `getCurrentUser()` - Retourne infos utilisateur
+- `logout()` - Déconnecte l'utilisateur
 
 ---
 
-## 🚀 Installation
+## 📊 Brique Outils - Modifications
 
-### 1. Upload des fichiers
+### Nouveautés :
+1. **Filtre "Public cible"** :
+   - 👤 Participant
+   - 👔 Manager IFEN
+   - 🔧 Admin only
 
-```bash
-# Copier tout le contenu vers :
-/var/www/html/ifen_html/toolbox/
-```
+2. **"Difficulté d'utilisation"** (remplace "Temps d'utilisation") :
+   - Facile (vert)
+   - Intermédiaire (jaune)
+   - Avancé (rouge)
 
-### 2. Configuration
+3. **Badges audience multiples** sur chaque carte outil
 
-Éditer `includes/config.php` :
-
-```php
-// Connexion base de données
-define('DB_HOST', 'localhost');
-define('DB_NAME', 'ifenlmsmain1db');
-define('DB_USER', 'votre_user');
-define('DB_PASS', 'votre_password');
-
-// Chemin de base
-define('BASE_URL', '/ifen_html/toolbox');
-```
-
-### 3. Base de données
-
-Exécuter dans phpMyAdmin :
-```sql
--- Fichier : sql/schema.sql
-```
-
-### 4. Test
-
-Ouvrir : `https://lms.ifen.lu/ifen_html/toolbox/`
-
----
-
-## 🧱 Comment ajouter une nouvelle brique
-
-### 1. Créer le fichier PHP
-
-```php
-// briques/brick-nouveau.php
-<?php
-/**
- * BRIQUE X : NOUVELLE BRIQUE
- * ==========================
- */
-?>
-<div class="brick-container brick-nouveau" id="brick-nouveau">
-    <!-- Votre HTML ici -->
-</div>
-```
-
-### 2. Créer le fichier JS
-
-```javascript
-// js/brick-nouveau.js
-const BrickNouveau = {
-    async init(containerId) {
-        // Votre logique ici
-    }
-};
-```
-
-### 3. Créer le fichier CSS
-
-```css
-/* css/brick-nouveau.css */
-.brick-nouveau {
-    /* Vos styles ici */
-}
-```
-
-### 4. Inclure dans index.php
-
-```php
-<!-- Dans index.php -->
-<section id="nouveau-section" class="brick-section">
-    <?php include __DIR__ . '/briques/brick-nouveau.php'; ?>
-</section>
-```
-
-### 5. Charger les fichiers
-
-Dans `includes/header.php` :
-```php
-<link rel="stylesheet" href="<?php echo asset('css/brick-nouveau.css'); ?>">
-```
-
-Dans `includes/footer.php` :
-```php
-<script src="<?php echo asset('js/brick-nouveau.js'); ?>"></script>
-```
-
----
-
-## 📋 Les 3 briques existantes
-
-### 🔧 Brique 1 : Outils Disponibles
-
-**Fichiers :**
-- `briques/brick-tools.php`
+### Fichiers :
 - `js/brick-tools.js`
-- `css/brick-tools.css`
-
-**Fonctionnalités :**
-- Vue grille + slider horizontal
-- Filtres (type, catégorie, recherche)
-- Favoris
-- Modal détails + tutoriel
-- Review Logs popup
+- `briques/brick-tools.php`
+- `css/additional.css` (styles .audience-badge, .difficulty-value)
 
 ---
 
-### 💡 Brique 2 : Idées & Votes
+## 🧪 Brique Beta Test - Améliorations
 
-**Fichiers :**
-- `briques/brick-ideas.php`
-- `js/brick-ideas.js`
-- `css/brick-ideas.css`
+### Nouveautés :
+1. **Bouton info (i)** dans le header de chaque carte
+2. **Popup d'informations détaillées** :
+   - Description complète
+   - Période de test (dates début/fin)
+   - Statistiques (testeurs, retours)
+   - Statut inscription
+   - Lien cours Moodle (si inscrit + courseid existe)
 
-**Fonctionnalités :**
-- Formulaire de proposition
-- Système de votes
-- Workflow de programmation
-- Vue Kanban par phase
+3. **Modal de succès après inscription** :
+   - Prochaines étapes numérotées (1-4)
+   - Lien direct vers le cours Moodle
 
----
+4. **Badge "Vous êtes inscrit !"** sur les cartes
 
-### 🧪 Brique 3 : Beta Testing
+### URL Moodle :
+```
+https://learningsphere.ifen.lu/course/view.php?id=[beta_course_id]
+```
 
-**Fichiers :**
-- `briques/brick-beta.php`
+### Fichiers :
 - `js/brick-beta.js`
-- `css/brick-beta.css`
-
-**Fonctionnalités :**
-- Liste des outils en beta
-- Inscription testeurs
-- Feedback structuré (Bug, Suggestion, Question, Bravo)
-- Notation par étoiles
-- Review Logs popup
+- `briques/brick-beta.php`
+- `css/additional.css`
 
 ---
 
-## 🔌 API Endpoints
+## 💡 Brique Idées & Votes - Nouveaux types
 
-L'API est dans `api/api.php`. Endpoints principaux :
+### Types d'idées (MIS À JOUR) :
+| Valeur | Label | Emoji |
+|--------|-------|-------|
+| `course_activity` | Activité de cours | 📚 |
+| `course_resource` | Ressource de cours | 📄 |
+| `platform_feature` | Fonctionnalité plateforme | ⚙️ |
+| `other` | Autres | 📌 |
 
-| Action | Méthode | Description |
-|--------|---------|-------------|
-| `stats` | GET | Statistiques globales |
-| `tools` | GET | Liste des outils |
-| `ideas` | GET | Liste des idées |
-| `vote` | POST | Voter pour une idée |
-| `beta_register` | POST | Inscription beta |
-| `beta_feedback` | POST | Envoyer feedback |
+### Bouton "Programmer" :
+- Visible **uniquement pour les admins**
+- Situé en bas du listing des idées
+- Ouvre un panel de sélection des idées les plus votées
+- Permet de définir : dates, priorité, phase, assignation
+
+### Fichiers :
+- `js/brick-ideas.js`
+- `briques/brick-ideas.php`
+- `css/additional.css`
 
 ---
 
-## 🎨 Personnalisation
+## 🔧 Configuration JavaScript
 
-### Couleurs IFEN
+### `js/config.js` - Constantes :
 
-Dans `css/base.css` :
-```css
-:root {
-    --primary: #20164D;      /* Violet IFEN */
-    --secondary: #00b2bb;    /* Cyan IFEN */
-    --accent: #ffc107;       /* Jaune IFEN */
+```javascript
+// Types d'idées
+ideaTypes: {
+    course_activity: { label: 'Activité de cours', emoji: '📚' },
+    course_resource: { label: 'Ressource de cours', emoji: '📄' },
+    platform_feature: { label: 'Fonctionnalité plateforme', emoji: '⚙️' },
+    other: { label: 'Autres', emoji: '📌' }
+}
+
+// Public cible
+targetAudiences: {
+    participant: { label: 'Participant', icon: 'fa-user', color: '#1e40af' },
+    manager: { label: 'Manager IFEN', icon: 'fa-user-tie', color: '#92400e' },
+    admin: { label: 'Admin only', icon: 'fa-user-shield', color: '#991b1b' }
+}
+
+// Difficulté d'utilisation
+difficultyLevels: {
+    easy: { label: 'Facile', color: '#065f46' },
+    medium: { label: 'Intermédiaire', color: '#92400e' },
+    hard: { label: 'Avancé', color: '#991b1b' }
 }
 ```
 
-### Configuration JS
+---
 
-Dans `js/config.js` :
-```javascript
-const TOOLBOX_CONFIG = {
-    api: { baseUrl: '/ifen_html/toolbox/api/api.php' },
-    // ...
-};
+## 🗄️ Modifications SQL requises
+
+### Nouvelles tables :
+- `toolbox_users` - Gestion utilisateurs + blacklist
+- `toolbox_sessions` - Sessions de connexion
+
+### Colonnes modifiées :
+- `toolbox_tools.target_audience` - JSON array des audiences
+- `toolbox_tools.beta_course_id` - ID du cours Moodle pour beta
+- `toolbox_ideas.type` - ENUM étendu avec nouveaux types
+
+### Voir : `sql/frontend-updates.sql`
+
+---
+
+## 📱 Header - Menu utilisateur
+
+### Affichage :
+- Avatar avec initiales
+- Nom + email
+- Badge "ADMIN" si admin
+- Dropdown avec :
+  - Lien Administration (si admin)
+  - Bouton Déconnexion
+
+### Fichier : `includes/header.php`
+
+---
+
+## 🚀 Déploiement
+
+### Ordre d'exécution :
+1. Exécuter `sql/frontend-updates.sql` sur la base de données
+2. Copier les fichiers PHP dans `/export/hosting/men/ifen/htdocs-html/ifen_html/toolbox/`
+3. Copier les fichiers JS dans le dossier `js/`
+4. Copier `additional.css` dans le dossier `css/`
+5. Vérifier les chemins dans `config.php` (DB_HOST, DB_NAME, etc.)
+6. Tester le login avec un identifiant IAM valide
+
+### Variables à vérifier :
+```php
+// Dans config.php
+define('DB_HOST', 'mysql.restena.lu');
+define('DB_NAME', 'ifenlmsmain1db');
+define('DB_USER', 'xxx');
+define('DB_PASS', 'xxx');
+define('MOODLE_COURSE_URL', 'https://learningsphere.ifen.lu/course/view.php?id=');
 ```
 
 ---
 
-## 📱 Responsive
+## ✅ Checklist des fonctionnalités
 
-Breakpoints :
-- Desktop : > 1024px (slider 3 cartes)
-- Tablette : 768-1024px (slider 2 cartes)
-- Mobile : < 768px (slider 1 carte)
-
----
-
-## ✅ Checklist déploiement
-
-- [ ] Fichiers uploadés
-- [ ] `includes/config.php` configuré
-- [ ] Base de données créée (`sql/schema.sql`)
-- [ ] Test sur Desktop
-- [ ] Test sur Mobile
-- [ ] API fonctionnelle
-
----
-
-## 📞 Support
-
-**Email** : support@ifen.lu  
-**Version** : 2.0.0 PHP  
-**Date** : Novembre 2024
-
----
-
-## 📝 Résumé
-
-| Élément | Fichier(s) |
-|---------|------------|
-| Configuration | `includes/config.php` |
-| En-tête | `includes/header.php` |
-| Pied de page | `includes/footer.php` |
-| Brique Outils | `briques/brick-tools.php` + `js/brick-tools.js` + `css/brick-tools.css` |
-| Brique Idées | `briques/brick-ideas.php` + `js/brick-ideas.js` + `css/brick-ideas.css` |
-| Brique Beta | `briques/brick-beta.php` + `js/brick-beta.js` + `css/brick-beta.css` |
-| API | `api/api.php` |
-| Base de données | `sql/schema.sql` |
-
-**1 brique = 3 fichiers (PHP + JS + CSS)** → Modification isolée ! 🎯
+- [x] Login IAM avec vérification mdl_user
+- [x] Système blacklist via toolbox_users
+- [x] Header avec menu utilisateur et badge admin
+- [x] Filtre public cible sur outils (participant, manager, admin)
+- [x] Difficulté d'utilisation (remplace temps d'utilisation)
+- [x] Popup info détaillée beta test
+- [x] Lien cours Moodle après inscription beta
+- [x] Nouveaux types d'idées (4 types)
+- [x] Bouton "Programmer" admin-only
+- [x] API endpoints pour toutes les actions
+- [x] Styles CSS pour tous les nouveaux composants

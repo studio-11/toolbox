@@ -6,12 +6,12 @@
     <!-- JavaScript -->
     <script>
         // Configuration globale pour JS
-        window.TOOLBOX_CONFIG = {
-            apiUrl: '<?php echo API_URL; ?>',
-            baseUrl: '<?php echo BASE_URL; ?>',
-            user: <?php echo json_encode(getCurrentUser()); ?>,
-            version: '<?php echo APP_VERSION; ?>'
-        };
+        window.TOOLBOX_CONFIG = window.TOOLBOX_CONFIG || {};
+        window.TOOLBOX_CONFIG.apiUrl = '<?php echo API_URL; ?>';
+        window.TOOLBOX_CONFIG.baseUrl = '<?php echo BASE_URL; ?>';
+        window.TOOLBOX_CONFIG.moodleCourseUrl = '<?php echo MOODLE_COURSE_URL; ?>';
+        window.TOOLBOX_CONFIG.user = <?php echo json_encode(getCurrentUser()); ?>;
+        window.TOOLBOX_CONFIG.version = '<?php echo APP_VERSION; ?>';
     </script>
     
     <!-- JS Modules -->

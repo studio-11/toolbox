@@ -1,7 +1,7 @@
 /**
  * IFEN Toolbox - Configuration Globale
  * ====================================
- * Ce fichier contient la configuration partagée entre toutes les briques
+ * Version mise à jour avec nouveaux types et audiences
  */
 
 const TOOLBOX_CONFIG = {
@@ -12,6 +12,9 @@ const TOOLBOX_CONFIG = {
         retryAttempts: 3
     },
     
+    // URL Moodle pour les cours
+    moodleCourseUrl: 'https://learningsphere.ifen.lu/course/view.php?id=',
+    
     // Statuts des outils
     toolStatus: {
         stable: { label: 'Stable', badge: 'success', icon: 'fa-check-circle' },
@@ -19,6 +22,32 @@ const TOOLBOX_CONFIG = {
         beta: { label: 'Beta', badge: 'warning', icon: 'fa-flask' },
         testing: { label: 'En test', badge: 'warning', icon: 'fa-vial' },
         deprecated: { label: 'Déprécié', badge: 'danger', icon: 'fa-exclamation-triangle' }
+    },
+    
+    // Public cible (NOUVEAU)
+    targetAudiences: {
+        participant: { label: 'Participant', icon: 'fa-user', color: '#1e40af', bg: '#dbeafe' },
+        manager: { label: 'Manager IFEN', icon: 'fa-user-tie', color: '#92400e', bg: '#fef3c7' },
+        admin: { label: 'Admin only', icon: 'fa-user-shield', color: '#991b1b', bg: '#fee2e2' }
+    },
+    
+    // Niveaux de difficulté (renommé "Difficulté d'utilisation")
+    difficultyLevels: {
+        easy: { label: 'Facile', color: '#065f46', bg: '#d1fae5' },
+        medium: { label: 'Intermédiaire', color: '#92400e', bg: '#fef3c7' },
+        hard: { label: 'Avancé', color: '#991b1b', bg: '#fee2e2' }
+    },
+    
+    // Types d'idées (MIS À JOUR)
+    ideaTypes: {
+        course_activity: { label: 'Activité de cours', emoji: '📚', icon: 'fa-chalkboard-teacher' },
+        course_resource: { label: 'Ressource de cours', emoji: '📄', icon: 'fa-file-alt' },
+        platform_feature: { label: 'Fonctionnalité plateforme', emoji: '⚙️', icon: 'fa-cog' },
+        other: { label: 'Autres', emoji: '📌', icon: 'fa-thumbtack' },
+        // Anciens types pour compatibilité
+        course: { label: 'Module de cours', emoji: '🧩', icon: 'fa-puzzle-piece' },
+        platform: { label: 'Fonctionnalité plateforme', emoji: '⚙️', icon: 'fa-cog' },
+        improvement: { label: 'Amélioration', emoji: '✨', icon: 'fa-magic' }
     },
     
     // Statuts des idées
@@ -68,11 +97,13 @@ const TOOLBOX_CONFIG = {
         critical: { label: 'Critique', color: '#ef4444', icon: 'fa-exclamation' }
     },
     
-    // Types d'idées
-    ideaTypes: {
-        course: { label: 'Module de cours', emoji: '🧩', icon: 'fa-puzzle-piece' },
-        platform: { label: 'Fonctionnalité plateforme', emoji: '⚙️', icon: 'fa-cog' },
-        improvement: { label: 'Amélioration', emoji: '✨', icon: 'fa-magic' }
+    // Statuts de plateforme
+    platformStatuses: {
+        operational: { label: 'Opérationnel', color: '#28a745', icon: 'fa-check-circle' },
+        maintenance: { label: 'Mise à jour', color: '#fd7e14', icon: 'fa-wrench' },
+        upgrading: { label: 'Mise à jour majeure', color: '#007bff', icon: 'fa-upload' },
+        partial_outage: { label: 'Dégradé', color: '#dc3545', icon: 'fa-exclamation-triangle' },
+        major_outage: { label: 'Indisponible', color: '#dc3545', icon: 'fa-times-circle' }
     },
     
     // Slider configuration

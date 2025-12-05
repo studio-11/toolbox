@@ -3,10 +3,17 @@
  * IFEN Toolbox - Page Principale
  * ==============================
  * Assembleur des briques modulaires
+ * Version avec login obligatoire
  */
 
 // Configuration
 require_once __DIR__ . '/includes/config.php';
+
+// Vérifier si l'utilisateur est connecté
+requireLogin();
+
+// Récupérer l'utilisateur courant
+$currentUser = getCurrentUser();
 
 // Header
 require_once __DIR__ . '/includes/header.php';

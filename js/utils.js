@@ -1,33 +1,30 @@
 /**
- * IFEN Toolbox - Utilitaires Partagés
- * ====================================
- * Fonctions utilitaires communes à toutes les briques
+ * IFEN Toolbox - Utilitaires JavaScript
+ * ======================================
  */
 
 const ToolboxUtils = {
     
-    // ==================== API CALLS ====================
+    // ==================== API ====================
     
     /**
-     * Appel API générique avec gestion d'erreurs
+     * Appel API générique
      */
-    async apiCall(action, method = 'GET', data = null, params = {}) {
-        const url = new URL(TOOLBOX_CONFIG.api.baseUrl, window.location.origin);
-        url.searchParams.append('action', action);
+    async apiCall(endpoint, method = 'GET', data = null, params = null) {
+        let url = `${TOOLBOX_CONFIG.api?.baseUrl || '/ifen_html/toolbox/api/api.php'}?action=${endpoint}`;
         
-        // Ajouter les paramètres supplémentaires
-        Object.entries(params).forEach(([key, value]) => {
-            if (value !== null && value !== undefined) {
-                url.searchParams.append(key, value);
-            }
-        });
+        if (params) {
+            Object.keys(params).forEach(key => {
+                url += `&${key}=${encodeURIComponent(params[key])}`;
+            });
+        }
         
         const options = {
-            method: method,
+            method,
             headers: {
                 'Content-Type': 'application/json',
-            },
-            credentials: 'same-origin'
+                'Accept': 'application/json'
+            }
         };
         
         if (data && method !== 'GET') {
@@ -36,261 +33,49 @@ const ToolboxUtils = {
         
         try {
             const response = await fetch(url, options);
-            const result = await response.json();
             
-            if (!result.success) {
-                throw new Error(result.error || 'Erreur inconnue');
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
             }
             
-            return result.data;
+            const result = await response.json();
+            
+            if (result.error) {
+                throw new Error(result.error);
+            }
+            
+            return result.data !== undefined ? result.data : result;
+            
         } catch (error) {
-            console.error('API Error:', error);
-            this.showNotification('Erreur de connexion à l\'API', 'error');
+            console.error(`API Error [${endpoint}]:`, error);
             throw error;
         }
     },
     
-    // ==================== NOTIFICATIONS ====================
+    // ==================== DOM ====================
     
     /**
-     * Afficher une notification toast
+     * Affiche un état de chargement
      */
-    showNotification(message, type = 'info', duration = 3000) {
-        // Supprimer les notifications existantes
-        document.querySelectorAll('.toolbox-notification').forEach(n => n.remove());
-        
-        const notification = document.createElement('div');
-        notification.className = `toolbox-notification notification-${type}`;
-        
-        const icons = {
-            success: 'fa-check-circle',
-            error: 'fa-exclamation-circle',
-            warning: 'fa-exclamation-triangle',
-            info: 'fa-info-circle'
-        };
-        
-        notification.innerHTML = `
-            <i class="fas ${icons[type] || icons.info}"></i>
-            <span>${message}</span>
-            <button class="notification-close" onclick="this.parentElement.remove()">
-                <i class="fas fa-times"></i>
-            </button>
-        `;
-        
-        document.body.appendChild(notification);
-        
-        // Animation d'entrée
-        setTimeout(() => notification.classList.add('show'), 10);
-        
-        // Auto-fermeture
-        setTimeout(() => {
-            notification.classList.remove('show');
-            setTimeout(() => notification.remove(), 300);
-        }, duration);
-    },
-    
-    // ==================== MODALS ====================
-    
-    /**
-     * Créer et afficher un modal
-     */
-    createModal(options = {}) {
-        const {
-            title = 'Modal',
-            content = '',
-            size = 'medium', // small, medium, large, full
-            closable = true,
-            onClose = null,
-            footer = null
-        } = options;
-        
-        // Supprimer les modals existants
-        document.querySelectorAll('.toolbox-modal-overlay').forEach(m => m.remove());
-        
-        const modal = document.createElement('div');
-        modal.className = 'toolbox-modal-overlay';
-        
-        const sizeClass = `modal-${size}`;
-        
-        modal.innerHTML = `
-            <div class="toolbox-modal ${sizeClass}">
-                <div class="modal-header">
-                    <h2 class="modal-title">${title}</h2>
-                    ${closable ? `
-                        <button class="modal-close" data-modal-close>
-                            <i class="fas fa-times"></i>
-                        </button>
-                    ` : ''}
-                </div>
-                <div class="modal-body">
-                    ${content}
-                </div>
-                ${footer ? `<div class="modal-footer">${footer}</div>` : ''}
-            </div>
-        `;
-        
-        // Event listeners
-        if (closable) {
-            modal.addEventListener('click', (e) => {
-                if (e.target === modal || e.target.closest('[data-modal-close]')) {
-                    this.closeModal(modal, onClose);
-                }
-            });
-            
-            // Fermer avec Escape
-            const escHandler = (e) => {
-                if (e.key === 'Escape') {
-                    this.closeModal(modal, onClose);
-                    document.removeEventListener('keydown', escHandler);
-                }
-            };
-            document.addEventListener('keydown', escHandler);
-        }
-        
-        document.body.appendChild(modal);
-        document.body.style.overflow = 'hidden';
-        
-        // Animation d'ouverture
-        setTimeout(() => modal.classList.add('open'), 10);
-        
-        return modal;
-    },
-    
-    /**
-     * Fermer un modal
-     */
-    closeModal(modal, callback = null) {
-        modal.classList.remove('open');
-        document.body.style.overflow = '';
-        
-        setTimeout(() => {
-            modal.remove();
-            if (callback) callback();
-        }, 300);
-    },
-    
-    /**
-     * Modal de confirmation
-     */
-    async confirmAction(message, title = 'Confirmer', confirmText = 'Confirmer', cancelText = 'Annuler') {
-        return new Promise((resolve) => {
-            const modal = this.createModal({
-                title: title,
-                content: `<p style="font-size: 1rem; color: var(--gray);">${message}</p>`,
-                size: 'small',
-                footer: `
-                    <button class="btn btn-secondary" data-modal-close>${cancelText}</button>
-                    <button class="btn btn-primary" data-confirm>${confirmText}</button>
-                `,
-                onClose: () => resolve(false)
-            });
-            
-            modal.querySelector('[data-confirm]').addEventListener('click', () => {
-                this.closeModal(modal);
-                resolve(true);
-            });
-        });
-    },
-    
-    // ==================== FORMATAGE ====================
-    
-    /**
-     * Formater une date
-     */
-    formatDate(dateString, options = {}) {
-        if (!dateString) return '-';
-        
-        const defaultOptions = {
-            day: '2-digit',
-            month: '2-digit',
-            year: 'numeric',
-            ...options
-        };
-        
-        const date = new Date(dateString);
-        return new Intl.DateTimeFormat('fr-FR', defaultOptions).format(date);
-    },
-    
-    /**
-     * Formater une date relative
-     */
-    formatRelativeDate(dateString) {
-        if (!dateString) return '-';
-        
-        const date = new Date(dateString);
-        const now = new Date();
-        const diff = now - date;
-        const seconds = Math.floor(diff / 1000);
-        const minutes = Math.floor(seconds / 60);
-        const hours = Math.floor(minutes / 60);
-        const days = Math.floor(hours / 24);
-        
-        if (days > 30) return this.formatDate(dateString);
-        if (days > 0) return `il y a ${days} jour${days > 1 ? 's' : ''}`;
-        if (hours > 0) return `il y a ${hours} heure${hours > 1 ? 's' : ''}`;
-        if (minutes > 0) return `il y a ${minutes} minute${minutes > 1 ? 's' : ''}`;
-        return 'à l\'instant';
-    },
-    
-    /**
-     * Formater un nombre
-     */
-    formatNumber(num) {
-        return new Intl.NumberFormat('fr-FR').format(num);
-    },
-    
-    /**
-     * Échapper le HTML
-     */
-    escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
-    },
-    
-    /**
-     * Tronquer un texte
-     */
-    truncate(text, length = 100) {
-        if (!text || text.length <= length) return text;
-        return text.substring(0, length).trim() + '...';
-    },
-    
-    // ==================== DOM UTILITIES ====================
-    
-    /**
-     * Afficher un loader dans un élément
-     */
-    showLoading(element, message = 'Chargement...') {
-        element.innerHTML = `
+    showLoading(container) {
+        if (!container) return;
+        container.innerHTML = `
             <div class="loading-state">
                 <div class="spinner"></div>
-                <p>${message}</p>
+                <p>Chargement...</p>
             </div>
         `;
     },
     
     /**
-     * Afficher un état vide
+     * Affiche un état d'erreur
      */
-    showEmptyState(element, icon = 'fa-inbox', title = 'Aucun élément', message = '') {
-        element.innerHTML = `
-            <div class="empty-state">
-                <i class="fas ${icon}"></i>
-                <h3>${title}</h3>
-                ${message ? `<p>${message}</p>` : ''}
-            </div>
-        `;
-    },
-    
-    /**
-     * Afficher une erreur
-     */
-    showError(element, message = 'Une erreur est survenue') {
-        element.innerHTML = `
+    showError(container, message = 'Une erreur est survenue') {
+        if (!container) return;
+        container.innerHTML = `
             <div class="error-state">
                 <i class="fas fa-exclamation-triangle"></i>
-                <p>${message}</p>
+                <p>${this.escapeHtml(message)}</p>
                 <button class="btn btn-secondary" onclick="location.reload()">
                     <i class="fas fa-redo"></i> Réessayer
                 </button>
@@ -299,20 +84,212 @@ const ToolboxUtils = {
     },
     
     /**
-     * Scroll smooth vers un élément
+     * Crée une modal
      */
-    scrollTo(elementId, offset = 20) {
-        const element = document.getElementById(elementId);
-        if (element) {
-            const position = element.getBoundingClientRect().top + window.pageYOffset - offset;
-            window.scrollTo({ top: position, behavior: 'smooth' });
+    createModal(options = {}) {
+        const { title = '', size = 'medium', content = '', footer = '' } = options;
+        
+        // Fermer modal existante
+        document.querySelector('.toolbox-modal-overlay')?.remove();
+        
+        const overlay = document.createElement('div');
+        overlay.className = 'toolbox-modal-overlay';
+        overlay.innerHTML = `
+            <div class="toolbox-modal modal-${size}">
+                <div class="modal-header">
+                    <h2 class="modal-title">${this.escapeHtml(title)}</h2>
+                    <button class="modal-close" data-modal-close>
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    ${content}
+                </div>
+                ${footer ? `<div class="modal-footer">${footer}</div>` : ''}
+            </div>
+        `;
+        
+        document.body.appendChild(overlay);
+        document.body.style.overflow = 'hidden';
+        
+        // Animation d'entrée
+        requestAnimationFrame(() => overlay.classList.add('active'));
+        
+        // Fermeture
+        overlay.querySelectorAll('[data-modal-close]').forEach(btn => {
+            btn.addEventListener('click', () => this.closeModal(overlay));
+        });
+        
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) this.closeModal(overlay);
+        });
+        
+        // Fermeture avec Escape
+        const handleEscape = (e) => {
+            if (e.key === 'Escape') {
+                this.closeModal(overlay);
+                document.removeEventListener('keydown', handleEscape);
+            }
+        };
+        document.addEventListener('keydown', handleEscape);
+        
+        return overlay;
+    },
+    
+    /**
+     * Ferme une modal
+     */
+    closeModal(overlay) {
+        if (!overlay) return;
+        overlay.classList.remove('active');
+        document.body.style.overflow = '';
+        setTimeout(() => overlay.remove(), 300);
+    },
+    
+    /**
+     * Affiche une notification toast
+     */
+    showNotification(message, type = 'info', duration = 4000) {
+        let container = document.getElementById('toast-container');
+        
+        if (!container) {
+            container = document.createElement('div');
+            container.id = 'toast-container';
+            container.className = 'toast-container';
+            document.body.appendChild(container);
+        }
+        
+        const icons = {
+            success: 'fa-check-circle',
+            error: 'fa-exclamation-circle',
+            warning: 'fa-exclamation-triangle',
+            info: 'fa-info-circle'
+        };
+        
+        const toast = document.createElement('div');
+        toast.className = `toast toast-${type}`;
+        toast.innerHTML = `
+            <i class="fas ${icons[type] || icons.info}"></i>
+            <span>${this.escapeHtml(message)}</span>
+            <button class="toast-close"><i class="fas fa-times"></i></button>
+        `;
+        
+        container.appendChild(toast);
+        
+        // Animation d'entrée
+        requestAnimationFrame(() => toast.classList.add('show'));
+        
+        // Fermeture
+        const closeToast = () => {
+            toast.classList.remove('show');
+            setTimeout(() => toast.remove(), 300);
+        };
+        
+        toast.querySelector('.toast-close').addEventListener('click', closeToast);
+        
+        if (duration > 0) {
+            setTimeout(closeToast, duration);
+        }
+        
+        return toast;
+    },
+    
+    // ==================== FORMATAGE ====================
+    
+    /**
+     * Échappe le HTML
+     */
+    escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    },
+    
+    /**
+     * Tronque un texte
+     */
+    truncate(text, length = 100) {
+        if (!text || text.length <= length) return text || '';
+        return text.substring(0, length).trim() + '...';
+    },
+    
+    /**
+     * Formate une date
+     */
+    formatDate(dateString) {
+        if (!dateString) return '';
+        const date = new Date(dateString);
+        return date.toLocaleDateString('fr-FR', {
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric'
+        });
+    },
+    
+    /**
+     * Formate une date relative
+     */
+    formatRelativeDate(dateString) {
+        if (!dateString) return '';
+        
+        const date = new Date(dateString);
+        const now = new Date();
+        const diff = now - date;
+        
+        const minutes = Math.floor(diff / 60000);
+        const hours = Math.floor(diff / 3600000);
+        const days = Math.floor(diff / 86400000);
+        
+        if (minutes < 1) return 'À l\'instant';
+        if (minutes < 60) return `Il y a ${minutes} min`;
+        if (hours < 24) return `Il y a ${hours}h`;
+        if (days < 7) return `Il y a ${days} jour${days > 1 ? 's' : ''}`;
+        if (days < 30) return `Il y a ${Math.floor(days / 7)} semaine${Math.floor(days / 7) > 1 ? 's' : ''}`;
+        
+        return this.formatDate(dateString);
+    },
+    
+    // ==================== STOCKAGE LOCAL ====================
+    
+    /**
+     * Sauvegarde en localStorage
+     */
+    saveLocal(key, value) {
+        try {
+            localStorage.setItem(`toolbox_${key}`, JSON.stringify(value));
+        } catch (e) {
+            console.warn('localStorage not available');
         }
     },
     
-    // ==================== DEBOUNCE & THROTTLE ====================
+    /**
+     * Récupère du localStorage
+     */
+    getLocal(key, defaultValue = null) {
+        try {
+            const item = localStorage.getItem(`toolbox_${key}`);
+            return item ? JSON.parse(item) : defaultValue;
+        } catch (e) {
+            return defaultValue;
+        }
+    },
     
     /**
-     * Debounce
+     * Supprime du localStorage
+     */
+    removeLocal(key) {
+        try {
+            localStorage.removeItem(`toolbox_${key}`);
+        } catch (e) {
+            console.warn('localStorage not available');
+        }
+    },
+    
+    // ==================== UTILITAIRES ====================
+    
+    /**
+     * Debounce function
      */
     debounce(func, wait = 300) {
         let timeout;
@@ -327,92 +304,40 @@ const ToolboxUtils = {
     },
     
     /**
-     * Throttle
+     * Throttle function
      */
-    throttle(func, limit = 100) {
+    throttle(func, limit = 300) {
         let inThrottle;
-        return function(...args) {
+        return function executedFunction(...args) {
             if (!inThrottle) {
-                func.apply(this, args);
+                func(...args);
                 inThrottle = true;
                 setTimeout(() => inThrottle = false, limit);
             }
         };
     },
     
-    // ==================== BADGES & STATUS ====================
-    
     /**
-     * Créer un badge de statut
+     * Génère un ID unique
      */
-    createStatusBadge(status, config = TOOLBOX_CONFIG.toolStatus) {
-        const statusInfo = config[status] || { label: status, badge: 'secondary', icon: 'fa-circle' };
-        return `<span class="status-badge badge-${statusInfo.badge}">
-            <i class="fas ${statusInfo.icon}"></i> ${statusInfo.label}
-        </span>`;
+    generateId() {
+        return Date.now().toString(36) + Math.random().toString(36).substr(2);
     },
     
     /**
-     * Créer un badge de priorité
+     * Copie du texte dans le presse-papier
      */
-    createPriorityBadge(priority) {
-        const info = TOOLBOX_CONFIG.priorities[priority] || TOOLBOX_CONFIG.priorities.medium;
-        return `<span class="priority-badge" style="background: ${info.color}20; color: ${info.color};">
-            <i class="fas ${info.icon}"></i> ${info.label}
-        </span>`;
-    },
-    
-    // ==================== PROGRESS ====================
-    
-    /**
-     * Créer une barre de progression
-     */
-    createProgressBar(percent, label = '') {
-        return `
-            <div class="progress-container">
-                ${label ? `<span class="progress-label">${label}</span>` : ''}
-                <div class="progress-bar">
-                    <div class="progress-fill" style="width: ${percent}%"></div>
-                </div>
-                <span class="progress-percent">${percent}%</span>
-            </div>
-        `;
-    },
-    
-    // ==================== STORAGE ====================
-    
-    /**
-     * Sauvegarder dans localStorage
-     */
-    saveLocal(key, data) {
+    async copyToClipboard(text) {
         try {
-            localStorage.setItem(`toolbox_${key}`, JSON.stringify(data));
+            await navigator.clipboard.writeText(text);
+            this.showNotification('Copié !', 'success', 2000);
             return true;
         } catch (e) {
-            console.error('LocalStorage error:', e);
+            console.error('Copy failed:', e);
             return false;
         }
-    },
-    
-    /**
-     * Récupérer du localStorage
-     */
-    getLocal(key, defaultValue = null) {
-        try {
-            const data = localStorage.getItem(`toolbox_${key}`);
-            return data ? JSON.parse(data) : defaultValue;
-        } catch (e) {
-            return defaultValue;
-        }
-    },
-    
-    /**
-     * Supprimer du localStorage
-     */
-    removeLocal(key) {
-        localStorage.removeItem(`toolbox_${key}`);
     }
 };
 
-// Exporter pour utilisation globale
+// Exporter
 window.ToolboxUtils = ToolboxUtils;

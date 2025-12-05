@@ -1,83 +1,192 @@
 <?php
 /**
- * IFEN Toolbox - API Endpoint
+ * IFEN Toolbox - API Endpoints
  * ============================
- * API REST pour la Toolbox IFEN
+ * Version mise à jour avec login IAM et nouvelles fonctionnalités
  */
 
-// Headers CORS et JSON
 header('Content-Type: application/json; charset=utf-8');
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type');
+header('Access-Control-Allow-Headers: Content-Type, Authorization');
 
-// Pour les requêtes OPTIONS (preflight)
+// Handle preflight
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(200);
-    exit();
+    exit;
 }
 
-// Charger la configuration
 require_once __DIR__ . '/../includes/config.php';
 
 // Connexion PDO
-try {
-    $pdo = getDbConnection();
-} catch (Exception $e) {
-    sendError('Erreur de connexion à la base de données', 500);
+function getDB() {
+    static $pdo = null;
+    if ($pdo === null) {
+        try {
+            $pdo = new PDO(
+                "mysql:host=" . DB_HOST . ";dbname=" . DB_NAME . ";charset=utf8mb4",
+                DB_USER,
+                DB_PASS,
+                [
+                    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                    PDO::ATTR_EMULATE_PREPARES => false
+                ]
+            );
+        } catch (PDOException $e) {
+            jsonError('Database connection failed', 500);
+        }
+    }
+    return $pdo;
 }
 
-// Récupérer l'action et la méthode
+// Réponse JSON
+function jsonResponse($data, $code = 200) {
+    http_response_code($code);
+    echo json_encode(['success' => true, 'data' => $data], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+function jsonError($message, $code = 400) {
+    http_response_code($code);
+    echo json_encode(['success' => false, 'error' => $message], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+// Récupérer les données POST
+function getPostData() {
+    $input = file_get_contents('php://input');
+    return json_decode($input, true) ?: $_POST;
+}
+
+// Router
 $action = $_GET['action'] ?? '';
 $method = $_SERVER['REQUEST_METHOD'];
-
-// Utilisateur courant
-$currentUser = getCurrentUser();
 
 try {
     switch ($action) {
         
-        // ==================== STATS ====================
-        case 'stats':
-            $stmt = $pdo->query("
-                SELECT 
-                    (SELECT COUNT(*) FROM toolbox_tools WHERE status IN ('stable', 'new')) AS tools_count,
-                    (SELECT COUNT(*) FROM toolbox_tools WHERE status = 'beta') AS beta_count,
-                    (SELECT COUNT(*) FROM toolbox_ideas WHERE status = 'proposed') AS ideas_count
+        // ==================== AUTHENTIFICATION ====================
+        
+        case 'login':
+            if ($method !== 'POST') jsonError('Method not allowed', 405);
+            
+            $data = getPostData();
+            $username = trim($data['username'] ?? '');
+            
+            if (empty($username)) {
+                jsonError('Identifiant requis');
+            }
+            
+            $pdo = getDB();
+            
+            // ÉTAPE 1 : Vérifier si le IAM existe dans mdl_user
+            $stmt = $pdo->prepare("
+                SELECT id, username, firstname, lastname, email 
+                FROM mdl_user 
+                WHERE username = ? AND deleted = 0 AND suspended = 0
             ");
-            $stats = $stmt->fetch();
-            sendSuccess($stats);
+            $stmt->execute([$username]);
+            $mdlUser = $stmt->fetch();
+            
+            if (!$mdlUser) {
+                jsonError('Identifiant non reconnu. Utilisez votre identifiant IAM.');
+            }
+            
+            // ÉTAPE 2 : Vérifier dans toolbox_users (blacklist + whitelist)
+            $stmt = $pdo->prepare("
+                SELECT id, is_blacklisted, is_whitelisted, is_admin 
+                FROM toolbox_users 
+                WHERE username = ?
+            ");
+            $stmt->execute([$username]);
+            $toolboxUser = $stmt->fetch();
+            
+            // ÉTAPE 2a : Vérifier si blacklisté
+            if ($toolboxUser && $toolboxUser['is_blacklisted']) {
+                jsonError('Accès refusé. Contactez l\'administrateur.');
+            }
+            
+            // ÉTAPE 3 : Vérifier si dans la whitelist
+            if (!$toolboxUser || !$toolboxUser['is_whitelisted']) {
+                jsonError('Accès non autorisé. Veuillez contacter l\'administrateur pour avoir accès à cette page.');
+            }
+            
+            // Utilisateur autorisé - mettre à jour last_login
+            $stmt = $pdo->prepare("UPDATE toolbox_users SET last_login = NOW() WHERE id = ?");
+            $stmt->execute([$toolboxUser['id']]);
+            
+            $toolboxUserId = $toolboxUser['id'];
+            $isAdmin = (bool)$toolboxUser['is_admin'];
+            
+            // Créer la session
+            session_start();
+            $_SESSION['toolbox_user'] = [
+                'id' => $toolboxUserId,
+                'mdl_user_id' => $mdlUser['id'],
+                'username' => $mdlUser['username'],
+                'name' => $mdlUser['firstname'] . ' ' . $mdlUser['lastname'],
+                'email' => $mdlUser['email'],
+                'is_admin' => $isAdmin
+            ];
+            
+            jsonResponse([
+                'user' => $_SESSION['toolbox_user'],
+                'message' => 'Connexion réussie'
+            ]);
+            break;
+            
+        case 'logout':
+            session_start();
+            session_destroy();
+            jsonResponse(['message' => 'Déconnexion réussie']);
+            break;
+            
+        case 'check_auth':
+            session_start();
+            if (isset($_SESSION['toolbox_user'])) {
+                jsonResponse(['authenticated' => true, 'user' => $_SESSION['toolbox_user']]);
+            } else {
+                jsonResponse(['authenticated' => false]);
+            }
             break;
         
-        // ==================== TOOLS ====================
+        // ==================== OUTILS ====================
+        
         case 'tools':
+            $pdo = getDB();
             $status = $_GET['status'] ?? 'available';
             
-            if ($status === 'available') {
-                $stmt = $pdo->query("SELECT * FROM v_tools_available");
-            } elseif ($status === 'beta') {
-                $stmt = $pdo->query("SELECT * FROM v_tools_beta");
+            if ($status === 'beta') {
+                $stmt = $pdo->query("
+                    SELECT t.*, c.name as category_name,
+                           (SELECT COUNT(*) FROM toolbox_beta_testers bt WHERE bt.tool_id = t.id) as testers_count,
+                           (SELECT COUNT(*) FROM toolbox_beta_feedback bf WHERE bf.tool_id = t.id) as feedback_count
+                    FROM toolbox_tools t
+                    LEFT JOIN toolbox_categories c ON t.category_id = c.id
+                    WHERE t.status = 'beta'
+                    ORDER BY t.created_at DESC
+                ");
             } else {
-                $stmt = $pdo->query("SELECT t.*, c.name AS category_name FROM toolbox_tools t LEFT JOIN toolbox_categories c ON t.category_id = c.id ORDER BY t.created_at DESC");
+                $stmt = $pdo->query("
+                    SELECT t.*, c.name as category_name
+                    FROM toolbox_tools t
+                    LEFT JOIN toolbox_categories c ON t.category_id = c.id
+                    WHERE t.status NOT IN ('beta', 'deprecated', 'hidden')
+                    ORDER BY t.is_hot DESC, t.name ASC
+                ");
             }
             
-            $tools = $stmt->fetchAll();
-            
-            // Charger les features pour chaque outil
-            foreach ($tools as &$tool) {
-                $stmtFeatures = $pdo->prepare("SELECT feature_text FROM toolbox_tool_features WHERE tool_id = ? ORDER BY display_order");
-                $stmtFeatures->execute([$tool['id']]);
-                $tool['features'] = $stmtFeatures->fetchAll(PDO::FETCH_COLUMN);
-            }
-            
-            sendSuccess($tools);
+            jsonResponse($stmt->fetchAll());
             break;
-        
-        case 'tool':
-            $id = $_GET['id'] ?? 0;
             
+        case 'tool':
+            $id = (int)($_GET['id'] ?? 0);
+            if (!$id) jsonError('ID requis');
+            
+            $pdo = getDB();
             $stmt = $pdo->prepare("
-                SELECT t.*, c.name AS category_name, c.icon AS category_icon
+                SELECT t.*, c.name as category_name
                 FROM toolbox_tools t
                 LEFT JOIN toolbox_categories c ON t.category_id = c.id
                 WHERE t.id = ?
@@ -85,722 +194,370 @@ try {
             $stmt->execute([$id]);
             $tool = $stmt->fetch();
             
-            if (!$tool) {
-                sendError('Outil non trouvé', 404);
+            if (!$tool) jsonError('Outil non trouvé', 404);
+            
+            // Récupérer les features
+            $stmt = $pdo->prepare("SELECT * FROM toolbox_tool_features WHERE tool_id = ? ORDER BY sort_order");
+            $stmt->execute([$id]);
+            $tool['features'] = $stmt->fetchAll();
+            
+            jsonResponse($tool);
+            break;
+            
+        case 'categories':
+            $pdo = getDB();
+            $stmt = $pdo->query("SELECT * FROM toolbox_categories ORDER BY sort_order, name");
+            jsonResponse($stmt->fetchAll());
+            break;
+        
+        // ==================== BETA TESTING ====================
+        
+        case 'beta_register':
+            if ($method !== 'POST') jsonError('Method not allowed', 405);
+            
+            session_start();
+            if (!isset($_SESSION['toolbox_user'])) jsonError('Non authentifié', 401);
+            
+            $data = getPostData();
+            $toolId = (int)($data['tool_id'] ?? 0);
+            $userId = $_SESSION['toolbox_user']['id'];
+            
+            if (!$toolId) jsonError('ID outil requis');
+            
+            $pdo = getDB();
+            
+            // Vérifier si déjà inscrit
+            $stmt = $pdo->prepare("SELECT id FROM toolbox_beta_testers WHERE tool_id = ? AND user_id = ?");
+            $stmt->execute([$toolId, $userId]);
+            if ($stmt->fetch()) {
+                jsonError('Déjà inscrit à ce beta test');
             }
             
-            // Charger les features
-            $stmtFeatures = $pdo->prepare("SELECT feature_text FROM toolbox_tool_features WHERE tool_id = ? ORDER BY display_order");
-            $stmtFeatures->execute([$id]);
-            $tool['features'] = $stmtFeatures->fetchAll(PDO::FETCH_COLUMN);
+            // Inscrire
+            $stmt = $pdo->prepare("INSERT INTO toolbox_beta_testers (tool_id, user_id, registered_at) VALUES (?, ?, NOW())");
+            $stmt->execute([$toolId, $userId]);
             
-            // Incrémenter les vues
-            $pdo->prepare("UPDATE toolbox_tools SET views_count = views_count + 1 WHERE id = ?")->execute([$id]);
-            
-            sendSuccess($tool);
+            jsonResponse(['message' => 'Inscription réussie', 'id' => $pdo->lastInsertId()]);
             break;
-        
-        case 'tool_reviews':
-            $toolId = $_GET['tool_id'] ?? 0;
             
+        case 'user_beta_registrations':
+            session_start();
+            if (!isset($_SESSION['toolbox_user'])) jsonError('Non authentifié', 401);
+            
+            $userId = $_SESSION['toolbox_user']['id'];
+            $pdo = getDB();
+            
+            $stmt = $pdo->prepare("SELECT tool_id FROM toolbox_beta_testers WHERE user_id = ?");
+            $stmt->execute([$userId]);
+            
+            $toolIds = array_column($stmt->fetchAll(), 'tool_id');
+            jsonResponse(array_map('intval', $toolIds));
+            break;
+            
+        case 'beta_feedback':
+            if ($method !== 'POST') jsonError('Method not allowed', 405);
+            
+            session_start();
+            if (!isset($_SESSION['toolbox_user'])) jsonError('Non authentifié', 401);
+            
+            $data = getPostData();
+            $toolId = (int)($data['tool_id'] ?? 0);
+            $userId = $_SESSION['toolbox_user']['id'];
+            
+            if (!$toolId) jsonError('ID outil requis');
+            if (empty($data['content'])) jsonError('Contenu requis');
+            
+            $pdo = getDB();
             $stmt = $pdo->prepare("
-                SELECT * FROM toolbox_tool_reviews 
-                WHERE tool_id = ? 
-                ORDER BY review_date DESC
+                INSERT INTO toolbox_beta_feedback (tool_id, user_id, feedback_type, title, content, rating, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, NOW())
+            ");
+            $stmt->execute([
+                $toolId,
+                $userId,
+                $data['feedback_type'] ?? 'general',
+                $data['title'] ?? null,
+                $data['content'],
+                $data['rating'] ?? null
+            ]);
+            
+            jsonResponse(['message' => 'Feedback enregistré', 'id' => $pdo->lastInsertId()]);
+            break;
+            
+        case 'beta_feedbacks':
+            $toolId = (int)($_GET['tool_id'] ?? 0);
+            if (!$toolId) jsonError('ID outil requis');
+            
+            $pdo = getDB();
+            $stmt = $pdo->prepare("
+                SELECT bf.*, 
+                       CONCAT(mu.firstname, ' ', LEFT(mu.lastname, 1), '.') as user_name
+                FROM toolbox_beta_feedback bf
+                LEFT JOIN toolbox_users tu ON bf.user_id = tu.id
+                LEFT JOIN mdl_user mu ON tu.mdl_user_id = mu.id
+                WHERE bf.tool_id = ?
+                ORDER BY bf.created_at DESC
+                LIMIT 50
             ");
             $stmt->execute([$toolId]);
-            $reviews = $stmt->fetchAll();
-            
-            sendSuccess($reviews);
+            jsonResponse($stmt->fetchAll());
             break;
         
-        // ==================== CATEGORIES ====================
-        case 'categories':
-            $stmt = $pdo->query("SELECT * FROM toolbox_categories ORDER BY display_order, name");
-            $categories = $stmt->fetchAll();
-            sendSuccess($categories);
-            break;
+        // ==================== IDÉES & VOTES ====================
         
-        // ==================== IDEAS ====================
         case 'ideas':
+            $pdo = getDB();
             $status = $_GET['status'] ?? 'pending';
             
-            if ($status === 'pending') {
-                $stmt = $pdo->query("SELECT * FROM v_ideas_pending");
-            } elseif ($status === 'planned') {
-                $stmt = $pdo->query("SELECT * FROM v_ideas_planned");
+            if ($status === 'planned') {
+                $stmt = $pdo->query("
+                    SELECT i.*, 
+                           CONCAT(mu.firstname, ' ', LEFT(mu.lastname, 1), '.') as user_name,
+                           (SELECT COUNT(*) FROM toolbox_idea_votes iv WHERE iv.idea_id = i.id) as votes_count
+                    FROM toolbox_ideas i
+                    LEFT JOIN toolbox_users tu ON i.user_id = tu.id
+                    LEFT JOIN mdl_user mu ON tu.mdl_user_id = mu.id
+                    WHERE i.status IN ('planned', 'in_progress')
+                    ORDER BY i.priority DESC, i.planned_start_date ASC
+                ");
             } else {
-                $stmt = $pdo->query("SELECT * FROM toolbox_ideas ORDER BY votes_count DESC, created_at DESC");
+                $stmt = $pdo->query("
+                    SELECT i.*, 
+                           CONCAT(mu.firstname, ' ', LEFT(mu.lastname, 1), '.') as user_name,
+                           (SELECT COUNT(*) FROM toolbox_idea_votes iv WHERE iv.idea_id = i.id) as votes_count
+                    FROM toolbox_ideas i
+                    LEFT JOIN toolbox_users tu ON i.user_id = tu.id
+                    LEFT JOIN mdl_user mu ON tu.mdl_user_id = mu.id
+                    WHERE i.status IN ('proposed', 'under_review')
+                    ORDER BY votes_count DESC, i.created_at DESC
+                ");
             }
             
-            $ideas = $stmt->fetchAll();
-            sendSuccess($ideas);
+            jsonResponse($stmt->fetchAll());
             break;
-        
+            
         case 'idea':
             if ($method === 'POST') {
-                $data = json_decode(file_get_contents('php://input'), true);
+                session_start();
+                if (!isset($_SESSION['toolbox_user'])) jsonError('Non authentifié', 401);
                 
+                $data = getPostData();
+                
+                if (empty($data['title'])) jsonError('Titre requis');
+                if (empty($data['type'])) jsonError('Type requis');
+                if (empty($data['problem'])) jsonError('Description du problème requise');
+                
+                // Valider le type
+                $validTypes = ['course_activity', 'course_resource', 'platform_feature', 'other'];
+                if (!in_array($data['type'], $validTypes)) {
+                    jsonError('Type invalide');
+                }
+                
+                $pdo = getDB();
                 $stmt = $pdo->prepare("
-                    INSERT INTO toolbox_ideas (title, type, problem, details, user_id, user_name, user_email)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                    INSERT INTO toolbox_ideas (user_id, title, type, problem, details, status, created_at)
+                    VALUES (?, ?, ?, ?, ?, 'proposed', NOW())
                 ");
                 $stmt->execute([
-                    $data['title'] ?? '',
-                    $data['type'] ?? 'improvement',
-                    $data['problem'] ?? '',
-                    $data['details'] ?? '',
-                    $currentUser['id'],
-                    $currentUser['name'],
-                    $currentUser['email']
+                    $_SESSION['toolbox_user']['id'],
+                    $data['title'],
+                    $data['type'],
+                    $data['problem'],
+                    $data['details'] ?? null
                 ]);
                 
-                sendSuccess(['id' => $pdo->lastInsertId(), 'message' => 'Idée créée avec succès']);
+                jsonResponse(['message' => 'Idée soumise', 'id' => $pdo->lastInsertId()]);
             }
             break;
-        
+            
         case 'vote':
-            if ($method === 'POST') {
-                $data = json_decode(file_get_contents('php://input'), true);
-                $ideaId = $data['idea_id'] ?? 0;
-                
-                // Vérifier si déjà voté
-                $stmt = $pdo->prepare("SELECT id FROM toolbox_votes WHERE idea_id = ? AND user_id = ?");
-                $stmt->execute([$ideaId, $currentUser['id']]);
-                
-                if ($stmt->fetch()) {
-                    sendError('Vous avez déjà voté pour cette idée', 400);
-                }
-                
-                // Ajouter le vote
-                $stmt = $pdo->prepare("INSERT INTO toolbox_votes (idea_id, user_id) VALUES (?, ?)");
-                $stmt->execute([$ideaId, $currentUser['id']]);
-                
-                // Mettre à jour le compteur
-                $pdo->prepare("UPDATE toolbox_ideas SET votes_count = votes_count + 1 WHERE id = ?")->execute([$ideaId]);
-                
-                sendSuccess(['message' => 'Vote enregistré']);
+            if ($method !== 'POST') jsonError('Method not allowed', 405);
+            
+            session_start();
+            if (!isset($_SESSION['toolbox_user'])) jsonError('Non authentifié', 401);
+            
+            $data = getPostData();
+            $ideaId = (int)($data['idea_id'] ?? 0);
+            $userId = $_SESSION['toolbox_user']['id'];
+            
+            if (!$ideaId) jsonError('ID idée requis');
+            
+            $pdo = getDB();
+            
+            // Vérifier si déjà voté
+            $stmt = $pdo->prepare("SELECT id FROM toolbox_idea_votes WHERE idea_id = ? AND user_id = ?");
+            $stmt->execute([$ideaId, $userId]);
+            if ($stmt->fetch()) {
+                jsonError('Vous avez déjà voté pour cette idée');
             }
+            
+            // Voter
+            $stmt = $pdo->prepare("INSERT INTO toolbox_idea_votes (idea_id, user_id, created_at) VALUES (?, ?, NOW())");
+            $stmt->execute([$ideaId, $userId]);
+            
+            jsonResponse(['message' => 'Vote enregistré']);
             break;
-        
+            
         case 'user_votes':
-            $stmt = $pdo->prepare("SELECT idea_id FROM toolbox_votes WHERE user_id = ?");
-            $stmt->execute([$currentUser['id']]);
-            $votes = $stmt->fetchAll(PDO::FETCH_COLUMN);
-            sendSuccess($votes);
+            session_start();
+            if (!isset($_SESSION['toolbox_user'])) jsonError('Non authentifié', 401);
+            
+            $userId = $_SESSION['toolbox_user']['id'];
+            $pdo = getDB();
+            
+            $stmt = $pdo->prepare("SELECT idea_id FROM toolbox_idea_votes WHERE user_id = ?");
+            $stmt->execute([$userId]);
+            
+            $ideaIds = array_column($stmt->fetchAll(), 'idea_id');
+            jsonResponse(array_map('intval', $ideaIds));
             break;
-        
+            
         case 'plan_idea':
-            if ($method === 'POST') {
-                $data = json_decode(file_get_contents('php://input'), true);
-                $ideaId = $data['idea_id'] ?? 0;
-                
-                $pdo->beginTransaction();
-                
-                try {
-                    // Mettre à jour le statut de l'idée
-                    $pdo->prepare("UPDATE toolbox_ideas SET status = 'in_progress' WHERE id = ?")->execute([$ideaId]);
-                    
-                    // Créer la planification
-                    $stmt = $pdo->prepare("
-                        INSERT INTO toolbox_idea_planning 
-                        (idea_id, planned_start_date, planned_end_date, priority, assigned_to, assigned_to_id, dev_notes, current_phase)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, 'analysis')
-                    ");
-                    $stmt->execute([
-                        $ideaId,
-                        $data['planned_start_date'] ?? null,
-                        $data['planned_end_date'] ?? null,
-                        $data['priority'] ?? 'medium',
-                        $data['assigned_to'] ?? null,
-                        $data['assigned_to_id'] ?? null,
-                        $data['dev_notes'] ?? null
-                    ]);
-                    
-                    $pdo->commit();
-                    sendSuccess(['message' => 'Idée planifiée avec succès']);
-                } catch (Exception $e) {
-                    $pdo->rollBack();
-                    throw $e;
-                }
-            }
-            break;
-        
-        case 'update_planning':
-            if ($method === 'PUT') {
-                $data = json_decode(file_get_contents('php://input'), true);
-                $ideaId = $data['idea_id'] ?? 0;
-                
-                $stmt = $pdo->prepare("
-                    UPDATE toolbox_idea_planning SET
-                        planned_start_date = ?,
-                        planned_end_date = ?,
-                        current_phase = ?,
-                        progress_percent = ?,
-                        priority = ?,
-                        assigned_to = ?,
-                        assigned_to_id = ?,
-                        dev_notes = ?
-                    WHERE idea_id = ?
-                ");
-                $stmt->execute([
-                    $data['planned_start_date'] ?? null,
-                    $data['planned_end_date'] ?? null,
-                    $data['current_phase'] ?? 'analysis',
-                    $data['progress_percent'] ?? 0,
-                    $data['priority'] ?? 'medium',
-                    $data['assigned_to'] ?? null,
-                    $data['assigned_to_id'] ?? null,
-                    $data['dev_notes'] ?? null,
-                    $ideaId
-                ]);
-                
-                sendSuccess(['message' => 'Planification mise à jour']);
-            }
-            break;
-        
-        case 'unplan_idea':
-            if ($method === 'DELETE') {
-                $data = json_decode(file_get_contents('php://input'), true);
-                $ideaId = $data['idea_id'] ?? 0;
-                
-                $pdo->beginTransaction();
-                
-                try {
-                    $pdo->prepare("DELETE FROM toolbox_idea_planning WHERE idea_id = ?")->execute([$ideaId]);
-                    $pdo->prepare("UPDATE toolbox_ideas SET status = 'proposed' WHERE id = ?")->execute([$ideaId]);
-                    
-                    $pdo->commit();
-                    sendSuccess(['message' => 'Idée retirée de la programmation']);
-                } catch (Exception $e) {
-                    $pdo->rollBack();
-                    throw $e;
-                }
-            }
-            break;
-        
-        // ==================== BETA ====================
-        case 'beta_register':
-            if ($method === 'POST') {
-                $data = json_decode(file_get_contents('php://input'), true);
-                $toolId = $data['tool_id'] ?? 0;
-                
-                // Vérifier si déjà inscrit
-                $stmt = $pdo->prepare("SELECT id FROM toolbox_beta_testers WHERE tool_id = ? AND user_id = ?");
-                $stmt->execute([$toolId, $currentUser['id']]);
-                
-                if ($stmt->fetch()) {
-                    sendError('Vous êtes déjà inscrit à ce beta test', 400);
-                }
-                
-                $stmt = $pdo->prepare("
-                    INSERT INTO toolbox_beta_testers (tool_id, user_id, user_name, user_email)
-                    VALUES (?, ?, ?, ?)
-                ");
-                $stmt->execute([
-                    $toolId,
-                    $currentUser['id'],
-                    $currentUser['name'],
-                    $currentUser['email']
-                ]);
-                
-                sendSuccess(['message' => 'Inscription au beta test réussie']);
-            }
-            break;
-        
-        case 'user_beta_registrations':
-            $stmt = $pdo->prepare("SELECT tool_id FROM toolbox_beta_testers WHERE user_id = ?");
-            $stmt->execute([$currentUser['id']]);
-            $registrations = $stmt->fetchAll(PDO::FETCH_COLUMN);
-            sendSuccess($registrations);
-            break;
-        
-        case 'beta_feedback':
-            if ($method === 'POST') {
-                $data = json_decode(file_get_contents('php://input'), true);
-                
-                $stmt = $pdo->prepare("
-                    INSERT INTO toolbox_beta_feedback (tool_id, user_id, user_name, feedback_type, title, content, rating)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
-                ");
-                $stmt->execute([
-                    $data['tool_id'] ?? 0,
-                    $currentUser['id'],
-                    $currentUser['name'],
-                    $data['feedback_type'] ?? 'general',
-                    $data['title'] ?? '',
-                    $data['content'] ?? '',
-                    $data['rating'] ?? null
-                ]);
-                
-                sendSuccess(['message' => 'Feedback envoyé avec succès']);
-            }
-            break;
-        
-        case 'beta_feedbacks':
-            $toolId = $_GET['tool_id'] ?? 0;
+            if ($method !== 'POST') jsonError('Method not allowed', 405);
             
+            session_start();
+            if (!isset($_SESSION['toolbox_user']) || !$_SESSION['toolbox_user']['is_admin']) {
+                jsonError('Accès refusé', 403);
+            }
+            
+            $data = getPostData();
+            $ideaId = (int)($data['idea_id'] ?? 0);
+            
+            if (!$ideaId) jsonError('ID idée requis');
+            
+            $pdo = getDB();
             $stmt = $pdo->prepare("
-                SELECT * FROM toolbox_beta_feedback 
-                WHERE tool_id = ? 
-                ORDER BY created_at DESC
+                UPDATE toolbox_ideas 
+                SET status = 'planned',
+                    planned_start_date = ?,
+                    planned_end_date = ?,
+                    priority = ?,
+                    current_phase = ?,
+                    assigned_to = ?,
+                    dev_notes = ?,
+                    updated_at = NOW()
+                WHERE id = ?
             ");
-            $stmt->execute([$toolId]);
-            $feedbacks = $stmt->fetchAll();
+            $stmt->execute([
+                $data['planned_start_date'] ?? null,
+                $data['planned_end_date'] ?? null,
+                $data['priority'] ?? 'medium',
+                $data['current_phase'] ?? 'analysis',
+                $data['assigned_to'] ?? null,
+                $data['dev_notes'] ?? null,
+                $ideaId
+            ]);
             
-            sendSuccess($feedbacks);
+            jsonResponse(['message' => 'Idée programmée']);
             break;
         
-        // ==================== FAVORITES ====================
+        // ==================== FAVORIS ====================
+        
         case 'favorite':
-            $data = json_decode(file_get_contents('php://input'), true);
-            $toolId = $data['tool_id'] ?? 0;
+            session_start();
+            if (!isset($_SESSION['toolbox_user'])) jsonError('Non authentifié', 401);
+            
+            $userId = $_SESSION['toolbox_user']['id'];
+            $pdo = getDB();
             
             if ($method === 'POST') {
-                $stmt = $pdo->prepare("INSERT IGNORE INTO toolbox_favorites (tool_id, user_id) VALUES (?, ?)");
-                $stmt->execute([$toolId, $currentUser['id']]);
-                sendSuccess(['message' => 'Ajouté aux favoris']);
+                $data = getPostData();
+                $toolId = (int)($data['tool_id'] ?? 0);
+                if (!$toolId) jsonError('ID outil requis');
+                
+                $stmt = $pdo->prepare("INSERT IGNORE INTO toolbox_favorites (user_id, tool_id, created_at) VALUES (?, ?, NOW())");
+                $stmt->execute([$userId, $toolId]);
+                jsonResponse(['message' => 'Ajouté aux favoris']);
+                
             } elseif ($method === 'DELETE') {
-                $stmt = $pdo->prepare("DELETE FROM toolbox_favorites WHERE tool_id = ? AND user_id = ?");
-                $stmt->execute([$toolId, $currentUser['id']]);
-                sendSuccess(['message' => 'Retiré des favoris']);
+                $data = getPostData();
+                $toolId = (int)($data['tool_id'] ?? 0);
+                if (!$toolId) jsonError('ID outil requis');
+                
+                $stmt = $pdo->prepare("DELETE FROM toolbox_favorites WHERE user_id = ? AND tool_id = ?");
+                $stmt->execute([$userId, $toolId]);
+                jsonResponse(['message' => 'Retiré des favoris']);
             }
             break;
-        
+            
         case 'user_favorites':
+            session_start();
+            if (!isset($_SESSION['toolbox_user'])) jsonError('Non authentifié', 401);
+            
+            $userId = $_SESSION['toolbox_user']['id'];
+            $pdo = getDB();
+            
             $stmt = $pdo->prepare("SELECT tool_id FROM toolbox_favorites WHERE user_id = ?");
-            $stmt->execute([$currentUser['id']]);
-            $favorites = $stmt->fetchAll(PDO::FETCH_COLUMN);
-            sendSuccess($favorites);
+            $stmt->execute([$userId]);
+            
+            $toolIds = array_column($stmt->fetchAll(), 'tool_id');
+            jsonResponse(array_map('intval', $toolIds));
             break;
         
-        // ==================== TRACKING ====================
-        case 'track':
-            if ($method === 'POST') {
-                $data = json_decode(file_get_contents('php://input'), true);
-                
-                $stmt = $pdo->prepare("
-                    INSERT INTO toolbox_tool_stats (tool_id, action_type, user_id, ip_address, user_agent)
-                    VALUES (?, ?, ?, ?, ?)
-                ");
-                $stmt->execute([
-                    $data['tool_id'] ?? 0,
-                    $data['action_type'] ?? 'view',
-                    $currentUser['id'],
-                    $_SERVER['REMOTE_ADDR'] ?? '',
-                    $_SERVER['HTTP_USER_AGENT'] ?? ''
-                ]);
-                
-                // Incrémenter le compteur approprié
-                if (($data['action_type'] ?? '') === 'install') {
-                    $pdo->prepare("UPDATE toolbox_tools SET installations_count = installations_count + 1 WHERE id = ?")->execute([$data['tool_id']]);
-                }
-                
-                sendSuccess(['message' => 'Action trackée']);
-            }
-            break;
+        // ==================== STATS & DIVERS ====================
         
-        // ==================== PLATFORM STATUS ====================
+        case 'stats':
+            $pdo = getDB();
+            
+            $tools = $pdo->query("SELECT COUNT(*) FROM toolbox_tools WHERE status NOT IN ('hidden', 'deprecated')")->fetchColumn();
+            $beta = $pdo->query("SELECT COUNT(*) FROM toolbox_tools WHERE status = 'beta'")->fetchColumn();
+            $ideas = $pdo->query("SELECT COUNT(*) FROM toolbox_ideas WHERE status IN ('proposed', 'under_review')")->fetchColumn();
+            
+            jsonResponse([
+                'tools_count' => (int)$tools,
+                'beta_count' => (int)$beta,
+                'ideas_count' => (int)$ideas
+            ]);
+            break;
+            
         case 'platform_status':
-            $stmt = $pdo->query("SELECT * FROM toolbox_platform_status ORDER BY id DESC LIMIT 1");
+            $pdo = getDB();
+            
+            // Récupérer le statut actuel
+            $stmt = $pdo->query("
+                SELECT * FROM toolbox_platform_status 
+                WHERE is_current = 1 
+                ORDER BY updated_at DESC 
+                LIMIT 1
+            ");
             $status = $stmt->fetch();
             
             if (!$status) {
-                // Statut par défaut si table vide
                 $status = [
-                    'platform_name' => 'LearningSphere',
-                    'platform_version' => '4.3.2',
-                    'moodle_version' => 'Moodle 4.3.2+',
-                    'current_status' => 'operational',
-                    'status_message' => 'Tous les systèmes fonctionnent normalement.'
+                    'status' => 'operational',
+                    'message' => null,
+                    'updated_at' => date('Y-m-d H:i:s')
                 ];
             }
             
-            sendSuccess($status);
+            jsonResponse($status);
             break;
-        
-        case 'update_platform_status':
-            if ($method === 'PUT') {
-                $data = json_decode(file_get_contents('php://input'), true);
-                
-                $pdo->beginTransaction();
-                
-                try {
-                    // Récupérer le statut actuel pour l'historique
-                    $currentStmt = $pdo->query("SELECT current_status FROM toolbox_platform_status LIMIT 1");
-                    $current = $currentStmt->fetch();
-                    
-                    // Mettre à jour le statut
-                    $stmt = $pdo->prepare("
-                        UPDATE toolbox_platform_status SET
-                            current_status = ?,
-                            status_message = ?,
-                            next_planned_maintenance = ?,
-                            updated_by = ?
-                        WHERE id = 1
-                    ");
-                    $stmt->execute([
-                        $data['current_status'] ?? 'operational',
-                        $data['status_message'] ?? null,
-                        $data['next_planned_maintenance'] ?? null,
-                        $currentUser['id']
-                    ]);
-                    
-                    // Ajouter à l'historique si statut changé
-                    if ($current && $current['current_status'] !== $data['current_status']) {
-                        $histStmt = $pdo->prepare("
-                            INSERT INTO toolbox_platform_status_history 
-                            (previous_status, new_status, status_message, changed_by, changed_by_name)
-                            VALUES (?, ?, ?, ?, ?)
-                        ");
-                        $histStmt->execute([
-                            $current['current_status'],
-                            $data['current_status'],
-                            $data['status_message'] ?? null,
-                            $currentUser['id'],
-                            $currentUser['name']
-                        ]);
-                    }
-                    
-                    $pdo->commit();
-                    sendSuccess(['message' => 'Statut mis à jour']);
-                } catch (Exception $e) {
-                    $pdo->rollBack();
-                    throw $e;
-                }
-            }
-            break;
-        
-        // ==================== WORKS STATS ====================
-        case 'works_stats':
-            $stmt = $pdo->query("
-                SELECT 
-                    SUM(CASE WHEN status = 'planned' THEN 1 ELSE 0 END) AS planned,
-                    SUM(CASE WHEN status = 'unplanned' THEN 1 ELSE 0 END) AS unplanned,
-                    SUM(CASE WHEN status = 'in_progress' THEN 1 ELSE 0 END) AS in_progress,
-                    SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) AS completed,
-                    SUM(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END) AS cancelled
-                FROM toolbox_works
-            ");
-            $stats = $stmt->fetch();
-            sendSuccess($stats);
-            break;
-        
-        // ==================== WORKS LIST ====================
-        case 'works':
-            $status = $_GET['status'] ?? '';
-            $type = $_GET['work_type'] ?? $_GET['type'] ?? '';
-            $search = $_GET['search'] ?? '';
-            $downtime = $_GET['downtime'] ?? '';
-            $dateFrom = $_GET['dateFrom'] ?? '';
-            $dateTo = $_GET['dateTo'] ?? '';
-            $upcoming = $_GET['upcoming'] ?? '';
-            $limit = $_GET['limit'] ?? 50;
             
-            $sql = "SELECT * FROM toolbox_works WHERE 1=1";
-            $params = [];
+        case 'track':
+            if ($method !== 'POST') jsonError('Method not allowed', 405);
             
-            // Filtre par statut (peut être multiple séparé par virgule)
-            if ($status) {
-                $statuses = explode(',', $status);
-                $placeholders = implode(',', array_fill(0, count($statuses), '?'));
-                $sql .= " AND status IN ($placeholders)";
-                $params = array_merge($params, $statuses);
+            $data = getPostData();
+            $toolId = (int)($data['tool_id'] ?? 0);
+            $actionType = $data['action_type'] ?? 'view';
+            
+            if (!$toolId) jsonResponse(['tracked' => false]);
+            
+            $pdo = getDB();
+            
+            // Incrémenter le compteur de vues
+            if ($actionType === 'view') {
+                $stmt = $pdo->prepare("UPDATE toolbox_tools SET views_count = views_count + 1 WHERE id = ?");
+                $stmt->execute([$toolId]);
             }
             
-            // Filtre par type
-            if ($type) {
-                $sql .= " AND work_type = ?";
-                $params[] = $type;
-            }
-            
-            // Filtre par interruption
-            if ($downtime !== '') {
-                $sql .= " AND causes_downtime = ?";
-                $params[] = (int)$downtime;
-            }
-            
-            // Filtre par date
-            if ($dateFrom) {
-                $sql .= " AND (planned_start_date >= ? OR actual_start_date >= ?)";
-                $params[] = $dateFrom;
-                $params[] = $dateFrom;
-            }
-            if ($dateTo) {
-                $sql .= " AND (planned_start_date <= ? OR actual_start_date <= ?)";
-                $params[] = $dateTo . ' 23:59:59';
-                $params[] = $dateTo . ' 23:59:59';
-            }
-            
-            // Filtre upcoming (travaux à venir)
-            if ($upcoming) {
-                $sql .= " AND planned_start_date >= NOW() AND planned_start_date <= DATE_ADD(NOW(), INTERVAL 30 DAY)";
-            }
-            
-            // Recherche
-            if ($search) {
-                $sql .= " AND (title LIKE ? OR description LIKE ?)";
-                $searchTerm = "%$search%";
-                $params[] = $searchTerm;
-                $params[] = $searchTerm;
-            }
-            
-            // Tri
-            $sql .= " ORDER BY 
-                CASE status 
-                    WHEN 'in_progress' THEN 1 
-                    WHEN 'planned' THEN 2 
-                    WHEN 'unplanned' THEN 3 
-                    WHEN 'completed' THEN 4 
-                    ELSE 5 
-                END,
-                CASE WHEN planned_start_date IS NULL THEN 1 ELSE 0 END,
-                planned_start_date ASC,
-                created_at DESC
-            ";
-            
-            // Limite
-            $sql .= " LIMIT " . (int)$limit;
-            
-            $stmt = $pdo->prepare($sql);
-            $stmt->execute($params);
-            $works = $stmt->fetchAll();
-            
-            sendSuccess($works);
-            break;
-        
-        // ==================== SINGLE WORK ====================
-        case 'work':
-            $id = $_GET['id'] ?? 0;
-            
-            $stmt = $pdo->prepare("SELECT * FROM toolbox_works WHERE id = ?");
-            $stmt->execute([$id]);
-            $work = $stmt->fetch();
-            
-            if (!$work) {
-                sendError('Travail non trouvé', 404);
-            }
-            
-            sendSuccess($work);
-            break;
-        
-        // ==================== CREATE WORK ====================
-        case 'work_create':
-            if ($method === 'POST') {
-                $data = json_decode(file_get_contents('php://input'), true);
-                
-                $stmt = $pdo->prepare("
-                    INSERT INTO toolbox_works (
-                        title, description, work_type, status, priority,
-                        causes_downtime, estimated_downtime_minutes, affected_services,
-                        planned_start_date, planned_end_date,
-                        target_version, from_version,
-                        work_notes, assigned_to,
-                        created_by, created_by_name
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ");
-                
-                $stmt->execute([
-                    $data['title'] ?? '',
-                    $data['description'] ?? '',
-                    $data['work_type'] ?? 'maintenance',
-                    $data['status'] ?? 'unplanned',
-                    $data['priority'] ?? 'medium',
-                    $data['causes_downtime'] ?? 0,
-                    $data['estimated_downtime_minutes'] ?? null,
-                    $data['affected_services'] ?? null,
-                    $data['planned_start_date'] ?? null,
-                    $data['planned_end_date'] ?? null,
-                    $data['target_version'] ?? null,
-                    $data['from_version'] ?? null,
-                    $data['work_notes'] ?? null,
-                    $data['assigned_to'] ?? null,
-                    $currentUser['id'],
-                    $currentUser['name']
-                ]);
-                
-                sendSuccess([
-                    'id' => $pdo->lastInsertId(),
-                    'message' => 'Travail créé avec succès'
-                ]);
-            }
-            break;
-        
-        // ==================== UPDATE WORK ====================
-        case 'work_update':
-            if ($method === 'PUT') {
-                $data = json_decode(file_get_contents('php://input'), true);
-                $id = $data['id'] ?? 0;
-                
-                if (!$id) {
-                    sendError('ID du travail manquant', 400);
-                }
-                
-                // Si le statut passe à "in_progress", enregistrer la date de début réelle
-                $actualStartDate = null;
-                if (($data['status'] ?? '') === 'in_progress') {
-                    $checkStmt = $pdo->prepare("SELECT status, actual_start_date FROM toolbox_works WHERE id = ?");
-                    $checkStmt->execute([$id]);
-                    $current = $checkStmt->fetch();
-                    
-                    if ($current && $current['status'] !== 'in_progress' && !$current['actual_start_date']) {
-                        $actualStartDate = date('Y-m-d H:i:s');
-                    }
-                }
-                
-                // Si le statut passe à "completed", enregistrer la date de fin réelle
-                $actualEndDate = null;
-                if (($data['status'] ?? '') === 'completed') {
-                    $checkStmt = $pdo->prepare("SELECT status, actual_end_date FROM toolbox_works WHERE id = ?");
-                    $checkStmt->execute([$id]);
-                    $current = $checkStmt->fetch();
-                    
-                    if ($current && $current['status'] !== 'completed' && !$current['actual_end_date']) {
-                        $actualEndDate = date('Y-m-d H:i:s');
-                    }
-                }
-                
-                $sql = "
-                    UPDATE toolbox_works SET
-                        title = ?,
-                        description = ?,
-                        work_type = ?,
-                        status = ?,
-                        priority = ?,
-                        causes_downtime = ?,
-                        estimated_downtime_minutes = ?,
-                        affected_services = ?,
-                        planned_start_date = ?,
-                        planned_end_date = ?,
-                        target_version = ?,
-                        from_version = ?,
-                        work_notes = ?,
-                        assigned_to = ?
-                ";
-                
-                $params = [
-                    $data['title'] ?? '',
-                    $data['description'] ?? '',
-                    $data['work_type'] ?? 'maintenance',
-                    $data['status'] ?? 'unplanned',
-                    $data['priority'] ?? 'medium',
-                    $data['causes_downtime'] ?? 0,
-                    $data['estimated_downtime_minutes'] ?? null,
-                    $data['affected_services'] ?? null,
-                    $data['planned_start_date'] ?? null,
-                    $data['planned_end_date'] ?? null,
-                    $data['target_version'] ?? null,
-                    $data['from_version'] ?? null,
-                    $data['work_notes'] ?? null,
-                    $data['assigned_to'] ?? null
-                ];
-                
-                if ($actualStartDate) {
-                    $sql .= ", actual_start_date = ?";
-                    $params[] = $actualStartDate;
-                }
-                
-                if ($actualEndDate) {
-                    $sql .= ", actual_end_date = ?";
-                    $params[] = $actualEndDate;
-                }
-                
-                $sql .= " WHERE id = ?";
-                $params[] = $id;
-                
-                $stmt = $pdo->prepare($sql);
-                $stmt->execute($params);
-                
-                sendSuccess(['message' => 'Travail mis à jour']);
-            }
-            break;
-        
-        // ==================== DELETE WORK ====================
-        case 'work_delete':
-            if ($method === 'DELETE') {
-                $data = json_decode(file_get_contents('php://input'), true);
-                $id = $data['id'] ?? $_GET['id'] ?? 0;
-                
-                if (!$id) {
-                    sendError('ID du travail manquant', 400);
-                }
-                
-                $stmt = $pdo->prepare("DELETE FROM toolbox_works WHERE id = ?");
-                $stmt->execute([$id]);
-                
-                sendSuccess(['message' => 'Travail supprimé']);
-            }
-            break;
-        
-        // ==================== COMPLETE WORK ====================
-        case 'work_complete':
-            if ($method === 'POST') {
-                $data = json_decode(file_get_contents('php://input'), true);
-                $id = $data['id'] ?? 0;
-                
-                if (!$id) {
-                    sendError('ID du travail manquant', 400);
-                }
-                
-                $stmt = $pdo->prepare("
-                    UPDATE toolbox_works SET
-                        status = 'completed',
-                        actual_end_date = NOW(),
-                        completion_notes = ?
-                    WHERE id = ?
-                ");
-                $stmt->execute([
-                    $data['completion_notes'] ?? null,
-                    $id
-                ]);
-                
-                sendSuccess(['message' => 'Travail marqué comme terminé']);
-            }
-            break;
-        
-        // ==================== PLATFORM STATUS HISTORY ====================
-        case 'platform_status_history':
-            $limit = $_GET['limit'] ?? 10;
-            
-            $stmt = $pdo->prepare("
-                SELECT * FROM toolbox_platform_status_history 
-                ORDER BY changed_at DESC 
-                LIMIT ?
-            ");
-            $stmt->execute([(int)$limit]);
-            $history = $stmt->fetchAll();
-            
-            sendSuccess($history);
+            jsonResponse(['tracked' => true]);
             break;
         
         default:
-            sendError('Action inconnue: ' . $action, 400);
+            jsonError('Action non reconnue', 404);
     }
     
 } catch (Exception $e) {
-    if (DEBUG_MODE) {
-        sendError($e->getMessage(), 500);
-    } else {
-        sendError('Une erreur est survenue', 500);
-    }
+    error_log('Toolbox API Error: ' . $e->getMessage());
+    jsonError('Erreur serveur', 500);
 }
-
-// ==================== HELPER FUNCTIONS ====================
-
-function sendSuccess($data) {
-    echo json_encode([
-        'success' => true,
-        'data' => $data
-    ], JSON_UNESCAPED_UNICODE);
-    exit;
-}
-
-function sendError($message, $code = 400) {
-    http_response_code($code);
-    echo json_encode([
-        'success' => false,
-        'error' => $message
-    ], JSON_UNESCAPED_UNICODE);
-    exit;
-}
-?>

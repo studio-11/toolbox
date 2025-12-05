@@ -4,15 +4,13 @@
  * ========================
  * Fichier : briques/brick-ideas.php
  * 
- * Fonctionnalités :
- * - Formulaire de proposition d'idées
- * - Système de votes
- * - Passage en programmation avec workflow
- * - Vue Kanban par phase
- * 
- * Pour modifier cette brique, éditez uniquement ce fichier
- * et le fichier js/brick-ideas.js
+ * Modifications:
+ * - Nouveaux types: Activité de cours, Ressource de cours, Fonctionnalité plateforme, Autres
+ * - Bouton "Programmer" visible uniquement pour admin
  */
+
+// Vérifier si admin pour afficher le bouton Programmer
+$showProgrammerButton = isAdmin();
 ?>
 
 <div class="brick-container brick-ideas" id="brick-ideas">
@@ -55,9 +53,10 @@
                 <label for="ideas-filter-type">Type</label>
                 <select id="ideas-filter-type" class="filter-select">
                     <option value="">Tous les types</option>
-                    <option value="course">🎓 Nouvelle activité de cours</option>
-                    <option value="platform">🌐 Nouvelle plateforme</option>
-                    <option value="improvement">⚡ Amélioration existante</option>
+                    <option value="course_activity">📚 Activité de cours</option>
+                    <option value="course_resource">📄 Ressource de cours</option>
+                    <option value="platform_feature">⚙️ Fonctionnalité plateforme</option>
+                    <option value="other">📌 Autres</option>
                 </select>
             </div>
             
@@ -88,6 +87,21 @@
                 <i class="fas fa-plus"></i> Proposer une idée
             </button>
         </div>
+        
+        <?php if ($showProgrammerButton): ?>
+        <!-- Bouton Programmer - ADMIN UNIQUEMENT -->
+        <div class="admin-actions" id="admin-programmer-section" style="margin-top: 30px; padding-top: 20px; border-top: 2px dashed var(--gray-200);">
+            <div class="admin-actions-header">
+                <span class="admin-badge-inline">
+                    <i class="fas fa-shield-alt"></i> Admin
+                </span>
+                <span>Actions administrateur</span>
+            </div>
+            <button class="btn btn-primary" id="btn-open-programmer" onclick="BrickIdeas.openProgrammerPanel()">
+                <i class="fas fa-calendar-plus"></i> Programmer une idée
+            </button>
+        </div>
+        <?php endif; ?>
     </div>
     
     <!-- Contenu onglet : En programmation (Kanban) -->
@@ -186,8 +200,56 @@
                 <button class="btn btn-sm idea-details-btn">
                     <i class="fas fa-info-circle"></i> Détails
                 </button>
+                <?php if ($showProgrammerButton): ?>
+                <button class="btn btn-sm btn-primary idea-plan-btn admin-only-btn" title="Programmer cette idée">
+                    <i class="fas fa-calendar-plus"></i> Programmer
+                </button>
+                <?php endif; ?>
             </div>
         </div>
+    </div>
+</template>
+
+<!-- Template pour le modal nouvelle idée -->
+<template id="template-new-idea-modal">
+    <div class="new-idea-form">
+        <form id="form-new-idea">
+            <div class="form-group">
+                <label for="idea-title-input">Titre de l'idée *</label>
+                <input type="text" id="idea-title-input" name="title" class="form-input" 
+                       placeholder="Ex: Outil de création de quiz interactifs" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="idea-type-input">Type d'idée *</label>
+                <select id="idea-type-input" name="type" class="form-input" required>
+                    <option value="">-- Sélectionner un type --</option>
+                    <option value="course_activity">📚 Activité de cours</option>
+                    <option value="course_resource">📄 Ressource de cours</option>
+                    <option value="platform_feature">⚙️ Fonctionnalité plateforme</option>
+                    <option value="other">📌 Autres</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="idea-problem-input">Quel problème cela résout-il ? *</label>
+                <textarea id="idea-problem-input" name="problem" class="form-textarea" rows="3" 
+                          placeholder="Décrivez le besoin ou le problème que cette idée adresse..." required></textarea>
+            </div>
+            
+            <div class="form-group">
+                <label for="idea-details-input">Détails supplémentaires (optionnel)</label>
+                <textarea id="idea-details-input" name="details" class="form-textarea" rows="3"
+                          placeholder="Ajoutez des précisions, exemples, liens utiles..."></textarea>
+            </div>
+            
+            <div class="form-actions">
+                <button type="button" class="btn btn-secondary" data-modal-close>Annuler</button>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-paper-plane"></i> Soumettre l'idée
+                </button>
+            </div>
+        </form>
     </div>
 </template>
 
@@ -223,9 +285,48 @@
             <button class="btn btn-xs btn-secondary" title="Voir détails">
                 <i class="fas fa-eye"></i>
             </button>
-            <button class="btn btn-xs btn-secondary" title="Modifier">
+            <?php if ($showProgrammerButton): ?>
+            <button class="btn btn-xs btn-secondary admin-only-btn" title="Modifier">
                 <i class="fas fa-edit"></i>
             </button>
+            <?php endif; ?>
         </div>
     </div>
 </template>
+
+<style>
+/* Styles pour les éléments admin */
+.admin-actions {
+    background: linear-gradient(135deg, rgba(255, 193, 7, 0.1) 0%, rgba(32, 22, 77, 0.05) 100%);
+    padding: 20px;
+    border-radius: var(--border-radius);
+    border: 2px dashed var(--accent);
+}
+
+.admin-actions-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 15px;
+    font-weight: 600;
+    color: var(--primary);
+}
+
+.admin-badge-inline {
+    background: var(--accent);
+    color: var(--primary);
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 700;
+}
+
+.admin-only-btn {
+    border: 2px solid var(--accent) !important;
+}
+
+.admin-only-btn:hover {
+    background: var(--accent) !important;
+    color: var(--primary) !important;
+}
+</style>

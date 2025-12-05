@@ -2,7 +2,13 @@
 /**
  * IFEN Toolbox - Configuration
  * ============================
+ * Version mise à jour avec gestion de session et login
  */
+
+// Démarrer la session si pas déjà fait
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 
 // Mode debug (mettre à false en production)
 define('DEBUG_MODE', true);
@@ -18,7 +24,7 @@ define('API_URL', BASE_URL . '/api/api.php');
 define('SITE_TITLE', 'Toolbox IFEN');
 
 // Version
-define('APP_VERSION', '2.0.0');
+define('APP_VERSION', '2.1.0');
 
 // Ressources externes
 define('FONT_URL', 'https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@400;500;600;700&display=swap');
@@ -28,6 +34,9 @@ define('IFEN_BG_PASTEL_URL', 'https://lms.ifen.lu/ifen_images/Fond_pastel_transv
 
 // CSS IFEN existant (Moodle)
 define('IFEN_MOODLE_CSS', '/ifenCSS/custom-moodle-styles.css');
+
+// URL Moodle pour les cours beta
+define('MOODLE_COURSE_URL', 'https://learningsphere.ifen.lu/course/view.php?id=');
 
 // ============================================
 // CONNEXION BASE DE DONNÉES
@@ -79,28 +88,91 @@ function getDbConnection() {
 }
 
 // ============================================
+// GESTION DE SESSION / AUTHENTIFICATION
+// ============================================
+
+/**
+ * Vérifier si l'utilisateur est connecté
+ */
+function isLoggedIn() {
+    return isset($_SESSION['toolbox_user']) && !empty($_SESSION['toolbox_user']['id']);
+}
+
+/**
+ * Vérifier si l'utilisateur est admin
+ */
+function isAdmin() {
+    return isLoggedIn() && !empty($_SESSION['toolbox_user']['is_admin']);
+}
+
+/**
+ * Exiger une connexion (rediriger vers login si non connecté)
+ */
+function requireLogin() {
+    if (!isLoggedIn()) {
+        header('Location: ' . BASE_URL . '/login.php');
+        exit;
+    }
+}
+
+/**
+ * Exiger les droits admin
+ */
+function requireAdmin() {
+    requireLogin();
+    if (!isAdmin()) {
+        http_response_code(403);
+        die('Accès non autorisé');
+    }
+}
+
+/**
+ * Déconnecter l'utilisateur
+ */
+function logout() {
+    $_SESSION['toolbox_user'] = null;
+    unset($_SESSION['toolbox_user']);
+    session_destroy();
+}
+
+// ============================================
 // UTILISATEUR COURANT
 // ============================================
 
 function getCurrentUser() {
-    // Intégration Moodle
-    // Décommenter ces lignes quand intégré à Moodle :
+    // Si connecté via la session toolbox
+    if (isLoggedIn()) {
+        return [
+            'id' => $_SESSION['toolbox_user']['id'],
+            'mdl_user_id' => $_SESSION['toolbox_user']['mdl_user_id'] ?? null,
+            'name' => $_SESSION['toolbox_user']['name'],
+            'email' => $_SESSION['toolbox_user']['email'],
+            'username' => $_SESSION['toolbox_user']['username'],
+            'is_admin' => $_SESSION['toolbox_user']['is_admin'] ?? false
+        ];
+    }
+    
+    // Intégration Moodle (fallback)
     /*
     global $USER;
     if (isset($USER) && !empty($USER->id)) {
         return [
             'id' => $USER->id,
             'name' => trim($USER->firstname . ' ' . $USER->lastname),
-            'email' => $USER->email
+            'email' => $USER->email,
+            'username' => $USER->username,
+            'is_admin' => is_siteadmin()
         ];
     }
     */
     
-    // Pour les tests (utilisateur par défaut)
+    // Non connecté - utilisateur anonyme
     return [
-        'id' => 1,
-        'name' => 'Utilisateur Test',
-        'email' => 'test@ifen.lu'
+        'id' => 0,
+        'name' => 'Visiteur',
+        'email' => '',
+        'username' => '',
+        'is_admin' => false
     ];
 }
 
@@ -123,10 +195,43 @@ function asset($path) {
     return url($path) . '?v=' . APP_VERSION;
 }
 
-// Vérifier si l'utilisateur est admin
-function isAdmin() {
-    // À adapter selon votre système
-    // Exemple Moodle : return is_siteadmin();
-    return true; // Pour les tests
+// Générer l'URL d'un cours Moodle
+function moodleCourseUrl($courseId) {
+    return MOODLE_COURSE_URL . intval($courseId);
 }
+
+// ============================================
+// CONSTANTES POUR LES OPTIONS
+// ============================================
+
+// Types d'idées (mis à jour)
+define('IDEA_TYPES', [
+    'course_activity' => 'Activité de cours',
+    'course_resource' => 'Ressource de cours',
+    'platform_feature' => 'Fonctionnalité plateforme',
+    'other' => 'Autres'
+]);
+
+// Public cible pour les outils
+define('TARGET_AUDIENCES', [
+    'participant' => 'Participant',
+    'manager' => 'Manager IFEN',
+    'admin' => 'Admin only'
+]);
+
+// Niveaux de difficulté
+define('DIFFICULTY_LEVELS', [
+    'easy' => 'Facile',
+    'medium' => 'Intermédiaire',
+    'hard' => 'Avancé'
+]);
+
+// Statuts de plateforme
+define('PLATFORM_STATUSES', [
+    'operational' => 'Opérationnel',
+    'maintenance' => 'Mise à jour',
+    'upgrading' => 'Mise à jour majeure',
+    'partial_outage' => 'Dégradé',
+    'major_outage' => 'Indisponible'
+]);
 ?>

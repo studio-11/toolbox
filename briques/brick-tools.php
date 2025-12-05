@@ -4,15 +4,10 @@
  * =============================
  * Fichier : briques/brick-tools.php
  * 
- * Fonctionnalités :
- * - Vue grille / slider horizontal
- * - Filtres (type, catégorie, recherche)
- * - Favoris
- * - Modal détails + tutoriel
- * - Review Logs popup
- * 
- * Pour modifier cette brique, éditez uniquement ce fichier
- * et le fichier js/brick-tools.js
+ * Modifications:
+ * - Public cible (audience) avec badges multiples
+ * - Difficulté d'utilisation (renommage)
+ * - Suppression du temps d'utilisation
  */
 ?>
 
@@ -56,6 +51,16 @@
             <select id="filter-category" class="filter-select">
                 <option value="">Toutes les catégories</option>
                 <!-- Chargé dynamiquement -->
+            </select>
+        </div>
+        
+        <div class="filter-group">
+            <label for="filter-audience">Public cible</label>
+            <select id="filter-audience" class="filter-select">
+                <option value="">Tous les publics</option>
+                <option value="participant">👤 Participant</option>
+                <option value="manager">👔 Manager IFEN</option>
+                <option value="admin">🔧 Admin only</option>
             </select>
         </div>
         
@@ -144,6 +149,17 @@
                     <span>Catégorie</span>
                 </span>
             </div>
+            
+            <!-- Public cible (nouveau) -->
+            <div class="tool-audience">
+                <!-- Badges générés dynamiquement -->
+            </div>
+            
+            <!-- Difficulté d'utilisation -->
+            <div class="tool-difficulty">
+                <span class="difficulty-label">Difficulté d'utilisation:</span>
+                <span class="difficulty-value"></span>
+            </div>
         </div>
         
         <div class="tool-card-footer">
@@ -163,3 +179,73 @@
         </div>
     </div>
 </template>
+
+<style>
+/* Styles pour public cible */
+.tool-audience {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 10px 0;
+}
+
+.audience-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 8px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    border-radius: 12px;
+    text-transform: uppercase;
+}
+
+.audience-badge.audience-participant {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+.audience-badge.audience-manager {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.audience-badge.audience-admin {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+/* Difficulté d'utilisation */
+.tool-difficulty {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.85rem;
+    margin-top: 8px;
+}
+
+.difficulty-label {
+    color: var(--gray-500);
+}
+
+.difficulty-value {
+    font-weight: 600;
+    padding: 2px 10px;
+    border-radius: 12px;
+}
+
+.difficulty-easy {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.difficulty-medium {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.difficulty-hard {
+    background: #fee2e2;
+    color: #991b1b;
+}
+</style>
